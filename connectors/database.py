@@ -200,12 +200,9 @@ def query_data(conn_config,sql_text, params):
 if __name__ == "__main__":
 
 
-    with Flow("my_awsomeflwo") as flow:
 
-        last_load = get_last_load(connstring, "F32_PROD_XEUS", "INLINE_ETEST", timedelta(days=65))
-        #code
+    last_load = get_last_load(connstring, "F32_PROD_XEUS", "INLINE_ETEST", timedelta(days=65))
 
-    flow.run()
 
     from datetime import timedelta, datetime
     connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
