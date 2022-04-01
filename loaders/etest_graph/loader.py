@@ -1,7 +1,7 @@
 
 from connectors.database import get_connection,
-
-
+from datetime import datetime, timedelta
+import numpy as np
 sql = """
 SELECT /*+  ordered index(ett et_tp_str_uk) index(ets wesr_pk) */
           --(SELECT pl99.PROCESS_SECURED_BY FROM A_LOT_AT_OPERATION pl99 WHERE ets.lot = pl99.lot AND ets.operation = pl99.operation AND ets.facility = pl99.facility AND rownum <= 1) AS PROCESS
@@ -31,9 +31,47 @@ AND  ets.LOAD_END_DATE_TIME > :START AND ets.LOAD_END_DATE_TIME <= :END AND ett.
 AND SUBSTR(ets.PROCESS,2,4) NOT IN ('1276', '1278')
 """
 
-def query_chunk(connstring, query, start, end):
+def datetime_to_pathlike_string(dt):
+    return dt.strftime("%Y%m%d-%H%M%S")
 
-    raise NotImplemented()
+def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=timedelta(days=65), incremental_load = timedelta(hours=12)):
+
+
+    from datetime import timedelta, datetime
+    # connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
+    last_load = get_last_load(connstring, datasource, table, max_delta_load)
+
+    inc = timedelta(hours=12)
+    cload = last_load + inc
+    loads = []
+    while cload < datetime.now():
+        loads.append((last_load, cload, datasource, table))
+        last_load += inc
+        cload += inc
+
+    return loads
+
+
+def query_chunk(connstring, datasource, table, query, start, end):
+    with get_connection({'datasource': datasource}) as con:
+        data = pd.read_sql(con, sql, params={"START": start, "END": end})
+
+
+def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column,  params):
+    '''params is a dictionary.  many possible chunk storage start with 'storage_path', 'load_start', 'load_end',
+     'partition_columns' for the resulting parquet'''
+
+    pvdf = data_df.pivot_table(keys=keys_columns, columns=columns, values=value_column, aggfunc=np.median)
+
+    load_start = datetime_to_pathlike_string(params['load_start'])
+    load_end = datetime_to_pathlike_string(params['load_end'])
+    fname = params['storage_path'] + f"/{load_start}`{load_end}.parquet"
+    if 'partition_columns' in params:
+        partition_columns = params['partition_columns']
+        data_df.to_parquet(fname, partition_cols=partition_columns)
+    else:
+        data_df.to_parquet(fname)
+
 
 def update_cache():
     raise NotImplemented()
