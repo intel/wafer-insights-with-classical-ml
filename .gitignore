@@ -32,3 +32,4 @@ _ReSharper*/
 packages/
 .idea/*
 data/*
+connectors/__pycache__/*
