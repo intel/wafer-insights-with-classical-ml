@@ -1,10 +1,12 @@
 import pandas as pd
+import numpy as np
 import pyodbc
 import os
 import sys, traceback
+from datetime import datetime, timedelta
 
 if os.name == 'nt':
-    #import PyUber
+    import PyUber
 
     use_db2 = False
 else:
@@ -67,6 +69,13 @@ def standardizeSchema(schema, df):
 
     return df
 
+def get_metadatadb_connection(conn_config):
+    try:
+        conn = pyodbc.connect(conn_config)
+    except:
+        raise Exception("Cannot connect to metadata database")
+    return conn
+
 
 def get_connection(conn_config):
     try:
@@ -81,6 +90,7 @@ def get_connection(conn_config):
 
 
 def create_history_table(conn):
+    conn = get_metadatadb_connection(conn)
     sql = '''CREATE TABLE IF NOT EXISTS LOAD_HISTORY (
                 END_LOAD_DATE timestamp ,
                 START_LOAD_DATE timestamp,
@@ -106,9 +116,11 @@ def get_last_load(conn_config,  source, loader_string_id, backload_timedelta):
     default_start_time = datetime.now() - backload_timedelta
 
     #last load will never load through PyUber.... will use raw connector
-    conn = pyodbc.connect(conn_config)
 
-    create_history_table(conn)
+    conn = get_metadatadb_connection(conn_config)
+
+
+    create_history_table(conn_config)
 
     data = pd.read_sql("select REAL_LOAD_DATE FROM LOAD_HISTORY WHERE SOURCE=? AND LOADER_STRING_ID=? AND IS_LOADED=1", conn,
                        params=(source, loader_string_id))
@@ -117,7 +129,7 @@ def get_last_load(conn_config,  source, loader_string_id, backload_timedelta):
         return default_start_time
 
     try:
-        real_load_date = data["REAL_LOAD_DATE"].max().to_pydatetime()
+        real_load_date = data["real_load_date"].max().to_pydatetime()
         return real_load_date
     except:
         raise Exception(fr"Failed to find most recent load date for {loader_string_id}, {source}")
@@ -126,7 +138,13 @@ def get_last_load(conn_config,  source, loader_string_id, backload_timedelta):
 def insert_load_start(conn_config, param_tuple_list):
     '''Param tuple should be (END_LOAD_DATE, START_LOAD_DATE, SOURCE, LOADER_STRING_ID)'''
     # last load will never load through PyUber.... will use raw connector
-    conn = pyodbc.connect(conn_config)
+
+    if type(conn_config) is str:
+        #could be a c connection string
+        conn = pyodbc.connect(conn_config)
+    else:
+        #else it is a connection
+        conn = conn_config
 
     sqlite_insert_with_param = """INSERT INTO LOAD_HISTORY
                               (END_LOAD_DATE, START_LOAD_DATE, SOURCE, LOADER_STRING_ID) 
@@ -167,9 +185,9 @@ def drop_load_history_table(conn_config):
     conn.commit()
     del conn
 
-def query_data(conn_config,sql_text, params):
+def query_data(conn,sql_text, params):
     '''Params should have the following form: (start_datetime, end_datetime)'''
-    conn = get_connection(conn_config)
+    #conn = get_connection(conn_config)
 
     curs = conn.cursor()
 
@@ -180,7 +198,7 @@ def query_data(conn_config,sql_text, params):
     else:
         #pyodbc wants a parameter tuple with ? for parameters in the sql.  In most scripts
         #the only params are :START, :END for the extract window
-        sql = sql_text.replace(":START", "?").replace(":END", "?")
+        sql_text = sql_text.replace(":START", "?").replace(":END", "?")
         curs.execute(sql_text, params)
 
     columns = [x[0] for x in curs.description]
