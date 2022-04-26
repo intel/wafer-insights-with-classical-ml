@@ -1,7 +1,13 @@
 
-from connectors.database import get_connection,
+from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
 from datetime import datetime, timedelta
 import numpy as np
+import pandas as pd
+
+#######################################################################################################################
+#################################################### SQ2L #############################################################
+#######################################################################################################################
+
 sql = """
 SELECT /*+  ordered index(ett et_tp_str_uk) index(ets wesr_pk) */
           --(SELECT pl99.PROCESS_SECURED_BY FROM A_LOT_AT_OPERATION pl99 WHERE ets.lot = pl99.lot AND ets.operation = pl99.operation AND ets.facility = pl99.facility AND rownum <= 1) AS PROCESS
@@ -28,8 +34,15 @@ INNER JOIN A_Wafer_Etest_Setup_Rollup wer ON ets.lao_start_ww = wer.lao_start_ww
 WHERE
               ets.valid_flag = 'Y'
 AND  ets.LOAD_END_DATE_TIME > :START AND ets.LOAD_END_DATE_TIME <= :END AND ett.structure_name NOT LIKE '%PROBE%' AND ett.structure_name NOT LIKE '%RALPH%' AND ett.structure_name NOT LIKE '%PRBRES%' and ett.structure_name NOT LIKE '%LISA%'
-AND SUBSTR(ets.PROCESS,2,4) NOT IN ('1276', '1278')
+AND SUBSTR(ets.PROCESS,2,4) NOT IN ('1276', '1278') 
+AND (ets.devrevstep like '8PTP%' OR ets.devrevstep like '8PJS%' OR ets.devrevstep like '8PJR%')
 """
+
+#######################################################################################################################
+############################################### CONSTANTS #############################################################
+#######################################################################################################################
+storage_root = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
+
 
 def datetime_to_pathlike_string(dt):
     return dt.strftime("%Y%m%d-%H%M%S")
@@ -52,9 +65,34 @@ def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=tim
     return loads
 
 
-def query_chunk(connstring, datasource, table, query, start, end):
-    with get_connection({'datasource': datasource}) as con:
-        data = pd.read_sql(con, sql, params={"START": start, "END": end})
+def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
+    key = ['LOT7', 'WAFER3', 'TEST_END_DATE', 'OPERATION', 'PROGRAM_NAME']
+    columns = 'TESTNAME`STRUCTURE_NAME'
+    values = 'MEDIAN'
+
+    with get_metadatadb_connection(metadatadb_conconfig) as mdb_conn:
+        with get_connection({'datasource': datasource}) as db_conn:
+            # (END_LOAD_DATE, START_LOAD_DATE, SOURCE, LOADER_STRING_ID)
+            print([(end, start, datasource, loader_string_id)])
+            insert_load_start(metadatadb_conconfig, [(end, start, datasource, loader_string_id)])
+            print(f"extracting: {start}, {end}")
+            data = query_data(db_conn, sql, params=(start, end))
+
+            return data
+
+
+
+def clean_data(data):
+    data['TESTNAME`STRUCTURE_NAME'] = data['OPERATION'] + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
+    data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
+    data['aggname_mean'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEAN'
+    index = ['PROCESS','SHORTDEVICE', 'LOT7', 'WAFER3', 'DEVREVSTEP', 'PROGRAM_NAME', 'LOAD_DATE']
+    pivot_data_median = pd.pivot_table(data, values = 'MEDIAN', columns='aggname_median', index=index)
+    pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
+
+    alldata = pivot_data_median.join(pivot_data_mean, on=index)
+    return alldata
+
 
 
 def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column,  params):
@@ -66,13 +104,50 @@ def store_chunk_observational_parquet(data_df, keys_columns, columns, value_colu
     load_start = datetime_to_pathlike_string(params['load_start'])
     load_end = datetime_to_pathlike_string(params['load_end'])
     fname = params['storage_path'] + f"/{load_start}`{load_end}.parquet"
+
     if 'partition_columns' in params:
         partition_columns = params['partition_columns']
         data_df.to_parquet(fname, partition_cols=partition_columns)
     else:
         data_df.to_parquet(fname)
 
+def store_raw_file(data_df, params):
+    load_start = datetime_to_pathlike_string(params['load_start'])
+    load_end = datetime_to_pathlike_string(params['load_end'])
+    fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
+    data_df.to_parquet(fname)
 
-def update_cache():
-    raise NotImplemented()
+def update_cache(backload = timedelta(days=60)):
+    from connectors.database import drop_load_history_table, get_last_load
+
+    mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
+
+    last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", backload)
+    print(f"last_load: {last_load}")
+
+    dt = timedelta(days=1)
+
+    next_load = last_load + dt
+
+    while next_load < datetime.now():
+        data = query_chunk(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", start=last_load,
+                           end=next_load)
+        cleaned = clean_data(data)
+
+        store_raw_file(cleaned, params={'load_start': last_load, 'load_end': next_load, 'storage_path': storage_root})
+
+        real_load_date = data['LOAD_DATE'].max().to_pydatetime()
+        set_load_finish(mdb_connstring, [(real_load_date, next_load, last_load, "INLINE_ETEST", "F32_PROD_XEUS")])
+        last_load += dt
+        next_load += dt
+
+
+
+if __name__=="__main__":
+    import PyUber
+    from connectors.database import drop_load_history_table
+
+    mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
+    #drop_load_history_table(mdb_connstring)
+    update_cache()
 
