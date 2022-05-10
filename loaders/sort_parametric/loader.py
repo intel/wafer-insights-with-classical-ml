@@ -49,9 +49,10 @@ select /*+ ordered */
         and DT.sort_x is not null
         and DT.sort_y is not null
         and ts.LOAD_END_DATE_TIME > :START AND ts.LOAD_END_DATE_TIME <= :END
-        and (ts.devrevstep like '8PTP%' OR ts.devrevstep like '8PJS%' OR ts.devrevstep like '8PJR%') 
+        and (ts.devrevstep like '8PFU%' OR ts.devrevstep like '8PJS%' OR ts.devrevstep like '8PJR%') 
         and T.test_name in ('IDV_1204_XNOM3GRIDNESTED_FULLDIE_0950_MED', 'PTH_POWER::POWER_X_SCREEN_K_BEGIN_X_X_X_X_SICC_CALC_PP_SICC_VCC0_V1_500MA_FC',
-        'IDV_2204_XNOM3GNES12_FULLDIE_0950_MED', 'PTH_POWER_SDT_SICC_ALLCORES_SCALED_V2')
+        'IDV_2204_XNOM3GNES12_FULLDIE_0950_MED', 'PTH_POWER_SDT_SICC_ALLCORES_SCALED_V2', 'IDV_2204_XNOM3GNES12_FULLDIE_0950_MED',
+        'PP_PWR_SICC_GLC0_V1')
 """
 
 #######################################################################################################################
@@ -82,7 +83,7 @@ def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=tim
 
 
 def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
-    key = ['LOT7', 'WAFER3', 'TEST_END_DATE', 'OPERATION', 'PROGRAM_NAME']
+    key = ['LOT7', 'WAFER3', 'TEST_END_DATE', 'OPERATION', 'PROGRAM_NAME', 'TEST_NAME']
     columns = 'TESTNAME`STRUCTURE_NAME'
     values = 'MEDIAN'
 
@@ -99,15 +100,30 @@ def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
 
 
 def clean_data(data):
-    data['TESTNAME`STRUCTURE_NAME'] = data['OPERATION'] + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
-    data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
-    data['aggname_mean'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEAN'
-    index = ['PROCESS','SHORTDEVICE', 'LOT7', 'WAFER3', 'DEVREVSTEP', 'PROGRAM_NAME', 'LOAD_DATE']
-    pivot_data_median = pd.pivot_table(data, values = 'MEDIAN', columns='aggname_median', index=index)
-    pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
+    data['fcol_mean'] = 'fcol`' + data['TEST_NAME'] + '`MEAN'
+    data['fcol_median'] = 'fcol`' + data['TEST_NAME'] + '`MEDIAN'
 
-    alldata = pivot_data_median.join(pivot_data_mean, on=index)
-    return alldata
+
+
+    #pivoted parameter data
+    key = ['DEVREVSTEP', 'SHORTDEVICE', 'LOT', 'LOT7', 'WAFER3', 'PROGRAM_NAME', 'TEST_END_DATE', 'OPERATION', 'TEST_NAME']
+
+    wl_data = data.groupby(by=key).agg(result_mean = pd.NamedAgg(column='RESULT', aggfunc='mean'),
+                                       result_median = pd.NamedAgg(column='RESULT', aggfunc='median'))
+
+
+    print(wl_data.head())
+
+
+    # data['TESTNAME`STRUCTURE_NAME'] = data['OPERATION'] + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
+    # data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
+    # data['aggname_mean'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEAN'
+    # index = ['PROCESS','SHORTDEVICE', 'LOT7', 'WAFER3', 'DEVREVSTEP', 'PROGRAM_NAME', 'LOAD_DATE']
+    # pivot_data_median = pd.pivot_table(data, values = 'MEDIAN', columns='aggname_median', index=index)
+    # pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
+    #
+    # alldata = pivot_data_median.join(pivot_data_mean, on=index)
+    return wl_data
 
 
 
@@ -130,18 +146,18 @@ def store_chunk_observational_parquet(data_df, keys_columns, columns, value_colu
 def store_raw_file(data_df, params):
     load_start = datetime_to_pathlike_string(params['load_start'])
     load_end = datetime_to_pathlike_string(params['load_end'])
-    fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
-    data_df.to_parquet(fname)
+    fname = params['storage_path'] + f"/LOAD_END={load_end}"
+    data_df.reset_index().to_parquet(fname, partition_cols=['SHORTDEVICE', 'OPERATION'])
 
-def update_cache(backload = timedelta(days=60)):
+def update_cache(backload = timedelta(days=90)):
     from connectors.database import drop_load_history_table, get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
-    last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", backload)
+    last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", backload)
     print(f"last_load: {last_load}")
-
-    dt = timedelta(hours=6)
+    last_load = datetime.now() - timedelta(days=90)
+    dt = timedelta(days=1)
 
     next_load = last_load + dt
 
@@ -163,9 +179,18 @@ if __name__=="__main__":
     import PyUber
     from connectors.database import drop_load_history_table
 
+    import PyUber
+    from connectors.database import drop_load_history_table
+
+    mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
+    # drop_load_history_table(mdb_connstring)
+    update_cache()
+
+    exit()
+
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
     #drop_load_history_table(mdb_connstring)
-    last_load = datetime.now() - timedelta(hours=3)
+    last_load = datetime.now() - timedelta(days=90)
     next_load = datetime.now()
     data = query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
                        end=next_load)
@@ -174,5 +199,9 @@ if __name__=="__main__":
 
     for c in data.columns:
         print(c)
+
+    clean_data(data)
+
+    data.to_parquet("data/sort_parametric.parquet")
     #update_cache()
 

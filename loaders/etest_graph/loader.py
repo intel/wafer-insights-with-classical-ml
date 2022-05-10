@@ -1,5 +1,6 @@
 
 from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
+from loaders.base_loader import utils
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
@@ -35,7 +36,7 @@ WHERE
               ets.valid_flag = 'Y'
 AND  ets.LOAD_END_DATE_TIME > :START AND ets.LOAD_END_DATE_TIME <= :END AND ett.structure_name NOT LIKE '%PROBE%' AND ett.structure_name NOT LIKE '%RALPH%' AND ett.structure_name NOT LIKE '%PRBRES%' and ett.structure_name NOT LIKE '%LISA%'
 AND SUBSTR(ets.PROCESS,2,4) NOT IN ('1276', '1278') 
-AND (ets.devrevstep like '8PTP%' OR ets.devrevstep like '8PJS%' OR ets.devrevstep like '8PJR%')
+AND (ets.devrevstep like '8PFU%' OR ets.devrevstep like '8PJS%' OR ets.devrevstep like '8PJR%')
 """
 
 #######################################################################################################################
@@ -53,8 +54,8 @@ def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=tim
     from datetime import timedelta, datetime
     # connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
     last_load = get_last_load(connstring, datasource, table, max_delta_load)
+    last_load = datetime.now() - timedelta(days=90)
 
-    inc = timedelta(hours=12)
     cload = last_load + inc
     loads = []
     while cload < datetime.now():
@@ -64,7 +65,7 @@ def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=tim
 
     return loads
 
-
+@utils.retry(Exception, tries=4)
 def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
     key = ['LOT7', 'WAFER3', 'TEST_END_DATE', 'OPERATION', 'PROGRAM_NAME']
     columns = 'TESTNAME`STRUCTURE_NAME'
@@ -83,15 +84,15 @@ def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
 
 
 def clean_data(data):
-    data['TESTNAME`STRUCTURE_NAME'] = data['OPERATION'] + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
-    data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
-    data['aggname_mean'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEAN'
-    index = ['PROCESS','SHORTDEVICE', 'LOT7', 'WAFER3', 'DEVREVSTEP', 'PROGRAM_NAME', 'LOAD_DATE']
-    pivot_data_median = pd.pivot_table(data, values = 'MEDIAN', columns='aggname_median', index=index)
-    pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
-
-    alldata = pivot_data_median.join(pivot_data_mean, on=index)
-    return alldata
+    data['TESTNAME`STRUCTURE_NAME'] = 'fcol`' + data['OPERATION'] + '`'  + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
+    # data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
+    # data['aggname_mean'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEAN'
+    # index = ['PROCESS','SHORTDEVICE', 'LOT7', 'WAFER3', 'DEVREVSTEP', 'PROGRAM_NAME', 'LOAD_DATE']
+    # pivot_data_median = pd.pivot_table(data, values = 'MEDIAN', columns='aggname_median', index=index)
+    # pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
+    #
+    # alldata = pivot_data_median.join(pivot_data_mean, on=index)
+    return data
 
 
 
@@ -114,8 +115,11 @@ def store_chunk_observational_parquet(data_df, keys_columns, columns, value_colu
 def store_raw_file(data_df, params):
     load_start = datetime_to_pathlike_string(params['load_start'])
     load_end = datetime_to_pathlike_string(params['load_end'])
-    fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
-    data_df.to_parquet(fname)
+    #fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
+    fname = params['storage_path'] + f"/LOAD_END={load_end}"
+    data_df = data_df.reset_index()
+
+    data_df.to_parquet(fname, partition_cols=['PROCESS', 'SHORTDEVICE','OPERATION', 'LOT7'])
 
 def update_cache(backload = timedelta(days=60)):
     from connectors.database import drop_load_history_table, get_last_load
@@ -124,6 +128,7 @@ def update_cache(backload = timedelta(days=60)):
 
     last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", backload)
     print(f"last_load: {last_load}")
+    #last_load = datetime.now() - timedelta(days=180)
 
     dt = timedelta(days=1)
 
@@ -145,9 +150,11 @@ def update_cache(backload = timedelta(days=60)):
 
 if __name__=="__main__":
     import PyUber
-    from connectors.database import drop_load_history_table
+    from connectors.database import drop_load_history_table, drop_load_history_by_string_id
+
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
     #drop_load_history_table(mdb_connstring)
+    drop_load_history_by_string_id(mdb_connstring, "INLINE_ETEST")
     update_cache()
 

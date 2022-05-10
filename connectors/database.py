@@ -175,6 +175,19 @@ def set_load_finish(conn_config, param_tuple):
         del conn
         raise Exception("Failed to update LOAD_HISTORY table with new data")
 
+def drop_load_history_by_string_id(conn_config, loader_string_id, data_source = None):
+    conn = pyodbc.connect(conn_config)
+    cursor = conn.cursor()
+
+    sql = f"DELETE FROM LOAD_HISTORY WHERE LOADER_STRING_ID='{loader_string_id}'"
+
+    if data_source is not None:
+        sql += f" and SOURCE='{data_source}'"
+
+    cursor.execute(sql)
+    conn.commit()
+    del conn
+
 
 def drop_load_history_table(conn_config):
     conn = pyodbc.connect(conn_config)
