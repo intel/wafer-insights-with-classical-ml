@@ -27,14 +27,19 @@ def get_loaded_operations(path, device):
     return df['OPERATION'].unique()
 
 def load_sort_parametric(path, device, sort_start, sort_end, fmax_token, fmax_operation,sicc_token, sicc_operation):
-    data = pq.ParquetDataset(path, filters=[('SHORTDEVICE', '=', device), ('OPERATION', 'in', [fmax_operation], sicc_operation)])
-    data = data[(data['TEST_END_DATE'] > sort_start) & data['TEST_END_DATE'] <= sort_end]
+    data = pq.ParquetDataset(path, filters=[('SHORTDEVICE', '=', device),
+                                            ('OPERATION', 'in', [fmax_operation, sicc_operation])]).read().to_pandas()
+    df = data[(data['TEST_END_DATE'] > sort_start) & (data['TEST_END_DATE'] <= sort_end)]
 
     sicc_data = df[(df['TEST_NAME'] == sicc_token) & (df['OPERATION'] == sicc_operation)]
     fmax_data = df[(df['TEST_NAME'] == fmax_token) & (df['OPERATION'] == fmax_operation)]
     fdata = pd.concat([sicc_data, fmax_data])
+    fdata = fdata.sort_values(by='TEST_END_DATE')
+    fdata = fdata.drop_duplicates(subset=['LOT7', 'WAFER3', 'TEST_END_DATE', 'TEST_NAME'], keep='first')
+    return fdata.pivot(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median')
 
-    return fdata.pivot_table(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median')
+    #return fdata.pivot_table(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median')
+
 
 
 
