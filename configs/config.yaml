@@ -1,0 +1,19 @@
+"1274":
+  - 8PFU
+  - 8PJS
+  - 8PJR
+"TOKENS":
+  - IDV_1204_XNOM3GRIDNESTED_FULLDIE_0950_MED
+  - PTH_POWER::POWER_X_SCREEN_K_BEGIN_X_X_X_X_SICC_CALC_PP_SICC_VCC0_V1_500MA_FC
+  - IDV_2204_XNOM3GNES12_FULLDIE_0950_MED
+  - PTH_POWER_SDT_SICC_ALLCORES_SCALED_V2
+  - IDV_2204_XNOM3GNES12_FULLDIE_0950_MED
+  - PP_PWR_SICC_GLC0_V1
+"SORT_PARAMETRIC_PATH":
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
+"ETEST_PATH":
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
+"SORT_PARAMETRIC_WAFERMAP_PATH":
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric_wafermap"
+"SPC_PATH":
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_spc"
