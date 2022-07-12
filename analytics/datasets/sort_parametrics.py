@@ -36,7 +36,7 @@ def load_sort_parametric(path, device, sort_start, sort_end, fmax_token, fmax_op
     fdata = pd.concat([sicc_data, fmax_data])
     fdata = fdata.sort_values(by='TEST_END_DATE')
     fdata = fdata.drop_duplicates(subset=['LOT7', 'WAFER3', 'TEST_END_DATE', 'TEST_NAME'], keep='first')
-    return fdata.pivot(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median')
+    return fdata.pivot(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median').reset_index()
 
     #return fdata.pivot_table(index = ['LOT7', 'WAFER3', 'TEST_END_DATE'], columns='TEST_NAME', values='result_median')
 
