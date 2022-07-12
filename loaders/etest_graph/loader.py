@@ -1,15 +1,26 @@
 
 from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
+from configs.configuration import get_config
 from loaders.base_loader import utils
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
+#read the config
+configs = get_config()
+#######################################################################################################################
+############################################### CONSTANTS #############################################################
+#######################################################################################################################
+
+storage_root = configs['ETEST_PATH']
+devices = configs['1274']
+device_string = ",".join([f"'{t}'" for t in devices])
+
 #######################################################################################################################
 #################################################### SQ2L #############################################################
 #######################################################################################################################
 
-sql = """
+sql = f"""
 SELECT /*+  ordered index(ett et_tp_str_uk) index(ets wesr_pk) */
           --(SELECT pl99.PROCESS_SECURED_BY FROM A_LOT_AT_OPERATION pl99 WHERE ets.lot = pl99.lot AND ets.operation = pl99.operation AND ets.facility = pl99.facility AND rownum <= 1) AS PROCESS
           SUBSTR(ets.PROCESS,2,4) as PROCESS
@@ -36,13 +47,10 @@ WHERE
               ets.valid_flag = 'Y'
 AND  ets.LOAD_END_DATE_TIME > :START AND ets.LOAD_END_DATE_TIME <= :END AND ett.structure_name NOT LIKE '%PROBE%' AND ett.structure_name NOT LIKE '%RALPH%' AND ett.structure_name NOT LIKE '%PRBRES%' and ett.structure_name NOT LIKE '%LISA%'
 AND SUBSTR(ets.PROCESS,2,4) NOT IN ('1276', '1278') 
-AND (ets.devrevstep like '8PFU%' OR ets.devrevstep like '8PJS%' OR ets.devrevstep like '8PJR%')
+AND substr(ets.devrevstep,1,4) in ({device_string})
 """
 
 #######################################################################################################################
-############################################### CONSTANTS #############################################################
-#######################################################################################################################
-storage_root = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
 
 
 def datetime_to_pathlike_string(dt):
@@ -119,16 +127,16 @@ def store_raw_file(data_df, params):
     fname = params['storage_path'] + f"/LOAD_END={load_end}"
     data_df = data_df.reset_index()
 
-    data_df.to_parquet(fname, partition_cols=['PROCESS', 'SHORTDEVICE','OPERATION', 'LOT7'])
+    data_df.to_parquet(fname, partition_cols=['PROCESS','OPERATION', 'SHORTDEVICE', 'LOT7'])
 
-def update_cache(backload = timedelta(days=60)):
+def update_cache(backload = timedelta(days=180)):
     from connectors.database import drop_load_history_table, get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
     last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", backload)
     print(f"last_load: {last_load}")
-    #last_load = datetime.now() - timedelta(days=180)
+    last_load = datetime.now() - timedelta(days=180)
 
     dt = timedelta(days=1)
 
