@@ -1,14 +1,28 @@
 
 from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
+from configs.configuration import get_config
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
+
+#read the config
+configs = get_config()
+#######################################################################################################################
+############################################### CONSTANTS #############################################################
+#######################################################################################################################
+
+storage_root = configs['SORT_PARAMETRIC_PATH']
+wm_storage_root = configs['SORT_PARAMETRIC_WAFERMAP_PATH']
+devices = configs['1274']
+device_string = ",".join([f"'{t}'" for t in devices])
+tokens = configs['TOKENS']
+tokens_string = ",".join([f"'{t}'" for t in tokens])
 
 #######################################################################################################################
 #################################################### SQ2L #############################################################
 #######################################################################################################################
 
-sql = """
+sql = f"""
 select /*+ ordered */
             TS.Lot LOT
             ,substr(TS.Lot,1,7) LOT7
@@ -49,10 +63,8 @@ select /*+ ordered */
         and DT.sort_x is not null
         and DT.sort_y is not null
         and ts.LOAD_END_DATE_TIME > :START AND ts.LOAD_END_DATE_TIME <= :END
-        and (ts.devrevstep like '8PFU%' OR ts.devrevstep like '8PJS%' OR ts.devrevstep like '8PJR%') 
-        and T.test_name in ('IDV_1204_XNOM3GRIDNESTED_FULLDIE_0950_MED', 'PTH_POWER::POWER_X_SCREEN_K_BEGIN_X_X_X_X_SICC_CALC_PP_SICC_VCC0_V1_500MA_FC',
-        'IDV_2204_XNOM3GNES12_FULLDIE_0950_MED', 'PTH_POWER_SDT_SICC_ALLCORES_SCALED_V2', 'IDV_2204_XNOM3GNES12_FULLDIE_0950_MED',
-        'PP_PWR_SICC_GLC0_V1')
+        and substr(TS.devrevstep,1,4) in ({device_string})
+        and T.test_name in ({tokens_string})
 """
 
 #######################################################################################################################
@@ -111,6 +123,22 @@ def clean_data(data):
     wl_data = data.groupby(by=key).agg(result_mean = pd.NamedAgg(column='RESULT', aggfunc='mean'),
                                        result_median = pd.NamedAgg(column='RESULT', aggfunc='median'))
 
+    gb = data.groupby(by=key)
+    wmaps = []
+
+    for data_key, df in gb:
+        dx = df['X'] - df['X'].min()
+        dy = df['Y'] - df['Y'].min()
+        dx = dx.astype(np.int)
+        dy = dx.astype(np.int)
+        array = np.nan*np.zeros(shape=(int(dx.max()+1), int(dy.max()+1)))
+        array[dx, dy] = df['RESULT']
+        row = [*data_key, array.tolist()]
+        wmaps.append(row)
+
+    df = pd.DataFrame(data=wmaps, columns=[*key, 'WAFERMAP'])
+    print(df.head())
+
 
     print(wl_data.head())
 
@@ -123,7 +151,7 @@ def clean_data(data):
     # pivot_data_mean = pd.pivot_table(data, values='MEAN', columns='aggname_mean', index=index)
     #
     # alldata = pivot_data_median.join(pivot_data_mean, on=index)
-    return wl_data
+    return wl_data, df
 
 
 
@@ -162,11 +190,12 @@ def update_cache(backload = timedelta(days=90)):
     next_load = last_load + dt
 
     while next_load < datetime.now():
-        data = query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
+        data= query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
                            end=next_load)
-        cleaned = clean_data(data)
+        cleaned, wm = clean_data(data)
 
         store_raw_file(cleaned, params={'load_start': last_load, 'load_end': next_load, 'storage_path': storage_root})
+        store_raw_file(wm, params={'load_start': last_load, 'load_end': next_load, 'storage_path': wm_storage_root})
 
         real_load_date = data['LOAD_DATE'].max().to_pydatetime()
         set_load_finish(mdb_connstring, [(real_load_date, next_load, last_load, "SORT_PARAMETRIC", "F32_PROD_XEUS")])
