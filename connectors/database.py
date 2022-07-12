@@ -77,10 +77,24 @@ def get_metadatadb_connection(conn_config):
     return conn
 
 
-def get_connection(conn_config):
+def get_connection(conn_config, db_config=None, secrets=None):
     try:
         if use_db2:
-            conn = pyodbc.connect(**conn_config)
+
+            usr = self.user_config['USER']
+            pwd = self.user_config['PASSWORD']
+
+            connstring = self.db_config[datasource]
+            connstring = connstring + f";UID={usr};PWD={pwd}"
+            conn = None
+
+            try:
+                conn = pyodbc.connect(connstring)
+            except pyodbc.Error as err:
+                print(err)
+
+            return pyodbc.connect(connstring)
+
         else:
             conn = PyUber.connect(**conn_config)
     except:
