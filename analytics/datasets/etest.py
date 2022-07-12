@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-
+import pyarrow.parquet as pq
+import pyarrow as pa
 etest_path = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
 sort_parametric_path = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
 
@@ -18,7 +19,7 @@ def get_loaded_tokens(path, device):
     return df['TEST_NAME'].unique()
 
 def get_loaded_operations(path, device):
-    df = pq.ParquetDataset(path, filters=[('SHORTDEVICE', '=', device)]).read(columns=['TEST_NAME']).to_pandas()
+    df = pq.ParquetDataset(path, filters=[('SHORTDEVICE', '=', device)]).read(columns=['OPERATION']).to_pandas()
     return df['OPERATION'].unique()
 
 def filter_feature_column(column, operations):
@@ -35,11 +36,38 @@ def filter_feature_column(column, operations):
             #is a feature column but at wrong operation
             return False
 
+def load_etest(path, device, operation, test_start, test_end, values_column = 'MEDIAN'):
+    index = ['PROCESS', 'DEVREVSTEP', 'LOT7', 'WAFER3', 'TEST_END_DATE']
+
+    data = pq.ParquetDataset(path, filters=[('device', '=', device), ('OPERATION', '=', operation)])
+
+    data = data.read().to_pandas()
+    mask = (data['TEST_END_DATE'] > test_start) & (data['TEST_END_DATE'] < test_end)
+    data = data.loc[mask, :]
+
+    # handle potential double loading
+    data = data.drop_duplicates(subset=[*index, 'TESTNAME`STRUCTURE_NAME'])
+    data = data.sort_values('TEST_END_DATE')
+    data = data.drop_duplicates(subset=['LOT7', 'WAFER3', 'TESTNAME`STRUCTURE_NAME'], keep='last')
+
+    from timeit import default_timer as dt
+
+    start = dt()
+    result = data.pivot(index=index, columns='TESTNAME`STRUCTURE_NAME', values=values_column).reset_index()
+    end = dt()
+
+    print(f"pivot took: {end - start} seconds for {result.shape}")
+
+    return result
+
 
 def load_etest_by_lotlist(path, lot7_list, operations, values_column = 'MEDIAN'):
     index = ['PROCESS', 'DEVREVSTEP', 'LOT7', 'WAFER3', 'TEST_END_DATE']
 
-    data = pq.ParquetDataset(path, validate_schema=False, filters=[[('LOT7', 'in', lot7_list),('OPERATION', 'in', operations)]])
+    if type(operations) is not list:
+        operations = [operations]
+
+    data = pq.ParquetDataset(path, filters=[('LOT7', 'in', list(lot7_list)),('OPERATION', 'in', operations)])
 
     data = data.read().to_pandas()
 
@@ -51,7 +79,7 @@ def load_etest_by_lotlist(path, lot7_list, operations, values_column = 'MEDIAN')
     from timeit import default_timer as dt
 
     start = dt()
-    result = data.pivot(index=index, columns='TESTNAME`STRUCTURE_NAME', values=values_column)
+    result = data.pivot(index=index, columns='TESTNAME`STRUCTURE_NAME', values=values_column).reset_index()
     end = dt()
 
     print(f"pivot took: {end-start} seconds for {result.shape}")
