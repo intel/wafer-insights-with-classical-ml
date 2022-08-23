@@ -143,7 +143,7 @@ def get_last_load(conn_config,  source, loader_string_id, backload_timedelta):
         return default_start_time
 
     try:
-        real_load_date = data["real_load_date"].max().to_pydatetime()
+        real_load_date = data["real_load_date"].max()
         return real_load_date
     except:
         raise Exception(fr"Failed to find most recent load date for {loader_string_id}, {source}")
