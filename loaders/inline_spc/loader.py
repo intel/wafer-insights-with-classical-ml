@@ -87,7 +87,7 @@ SELECT
          ,a9.chart_parameter AS chart_parameter
          ,a9.chart_on AS chart_on
          ,a3.measurement_set_name AS measurement_set_name
-         ,a11.load_date AS load_date
+         ,a0.load_date AS load_date
 FROM 
 P_SPC_LOT a0
 LEFT JOIN P_SPC_ENTITY a1 ON a1.spcs_id = a0.spcs_id AND a1.entity_sequence=1
@@ -96,16 +96,17 @@ INNER JOIN P_SPC_MEASUREMENT_SET a3 ON a3.spcs_id = a2.spcs_id
 LEFT JOIN P_SPC_CHART_POINT a5 ON a5.spcs_id = a3.spcs_id AND a5.measurement_set_name = a3.measurement_set_name
 LEFT JOIN P_SPC_CHART a9 ON a9.chart_id = a5.chart_id
 LEFT JOIN P_SPC_CHART_LIMIT a10 ON a10.chart_id = a5.chart_id AND a10.limit_id = a5.limit_id
-LEFT JOIN P_SPC_CHARTPOINT_MEASUREMENT a11 ON a11.spcs_id = a0.spcs_id and a11.measurement_set_name = a3.measurement_set_name
+
 WHERE
               SUBSTR(a0.devrevstep,1, 4) IN ({device_string})
+AND      a0.LOAD_DATE > :START AND a0.LOAD_DATE <= :END
  AND      (SELECT lrc99.last_pass FROM F_LOT_RUN_CARD lrc99 where lrc99.lot =a0.lot AND lrc99.operation = a0.operation AND lrc99.site_prevout_date=a0.prev_moveout_time and rownum<=1) = 'Y' 
  AND      a0.rework_latest_flag = 'Y' 
  AND      a3.valid_flag <> 'I' 
  AND      a5.latest_flag = 'Y' 
  AND      a3.latest_flag = 'Y' 
  AND      a5.value is not NULL
- AND      a11.LOAD_DATE > :START AND a11.LOAD_DATE <= :END
+
 """
 
 
@@ -161,9 +162,9 @@ def clean_data(data):
     #filter out degenerate column indexes
     data = data[~data['colnames'].isin(r['colnames'].unique())]
 
-    pv = pd.pivot_table(data, index=['PROCESS', 'DEVREVSTEP', 'LOT7'], columns='colnames', values='CHART_VALUE', aggfunc=np.median)
+    #pv = pd.pivot_table(data, index=['PROCESS', 'DEVREVSTEP', 'LOT7'], columns='colnames', values='CHART_VALUE', aggfunc=np.median)
 
-    return pv
+    return data
 
 
 
@@ -201,7 +202,7 @@ def update_cache(backload = timedelta(days=180)):
     print(f"last_load: {last_load}")
     last_load = datetime.now() - timedelta(days=180)
 
-    dt = timedelta(days=1)
+    dt = timedelta(hours=6)
 
     next_load = last_load + dt
 

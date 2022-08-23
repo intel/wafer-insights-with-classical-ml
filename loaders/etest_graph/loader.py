@@ -136,7 +136,7 @@ def update_cache(backload = timedelta(days=180)):
 
     last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "INLINE_ETEST", backload)
     print(f"last_load: {last_load}")
-    last_load = datetime.now() - timedelta(days=180)
+    #last_load = datetime.now() - timedelta(days=180)
 
     dt = timedelta(days=1)
 
@@ -163,6 +163,6 @@ if __name__=="__main__":
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
     #drop_load_history_table(mdb_connstring)
-    drop_load_history_by_string_id(mdb_connstring, "INLINE_ETEST")
+    #drop_load_history_by_string_id(mdb_connstring, "INLINE_ETEST")
     update_cache()
 

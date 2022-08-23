@@ -184,7 +184,7 @@ def update_cache(backload = timedelta(days=90)):
 
     last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", backload)
     print(f"last_load: {last_load}")
-    last_load = datetime.now() - timedelta(days=90)
+    #last_load = datetime.now() - timedelta(days=90)
     dt = timedelta(days=1)
 
     next_load = last_load + dt
