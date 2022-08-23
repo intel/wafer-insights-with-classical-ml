@@ -34,3 +34,4 @@ packages/
 data/*
 connectors/__pycache__/*
 *.pyc
+notebooks/.*
