@@ -40,7 +40,7 @@ app = dash.Dash(
         {"name": "viewport", "content": "width=device-width, initial-scale=1.0"}
     ],
 )
-app.title = "Support Vector Machine"
+app.title = "Wafer Insights"
 server = app.server
 
 
@@ -506,11 +506,11 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     from xgboost import XGBRegressor, XGBRFRegressor
     from sklearn.decomposition import PCA
     #QuantileTransformer(output_distribution='normal')
-    #fmaxpipe = Pipeline([('scaler', StandardScaler()), ('vt', VarianceThreshold(0.8*(1-0.8))), ("imputer", SimpleImputer()), ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5]))])
+    #fmaxpipe = Pipeline([('scaler', StandardScaler()), ('vt', VarianceThreshold(0.8*(1-0.8))), ("imputer", SimpleImputer()), ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5]))])GradientBoostingRegressor( cv=TimeSeriesSplit(n_splits=3)))]
     fmaxpipe = Pipeline([ ('scaler', QuantileTransformer(output_distribution='normal')), ("imputer", SimpleImputer()),
-                         ('regressor',  LassoCV( cv=TimeSeriesSplit(n_splits=3)))])
+                         ('regressor',  GradientBoostingRegressor())])
     siccpipe = Pipeline([ ('scaler', QuantileTransformer(output_distribution='normal')),("imputer", SimpleImputer()),
-                         ('regressor',  LassoCV(cv=TimeSeriesSplit(n_splits=3)))])
+                         ('regressor',  GradientBoostingRegressor())])
 
 
 
@@ -559,9 +559,9 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
 
     r1 = fmaxpipe.named_steps["regressor"]
     print("mse_path")
-    print(f"alpha {r1.alpha_}")
-    aidx = list(r1.alphas_).index(r1.alpha_)
-    print(fmaxpipe.named_steps["regressor"].mse_path_[aidx])
+    #print(f"alpha {r1.alpha_}")
+    #aidx = list(r1.alphas_).index(r1.alpha_)
+    #print(fmaxpipe.named_steps["regressor"].mse_path_[aidx])
     # siccpipe = Pipeline(
     #     [('scaler', QuantileTransformer(output_distribution='normal')), ('vt', VarianceThreshold(0.9 * (1 - 0.9))),
     #      ("imputer", SimpleImputer()), ("xfr_select", SelectFromModel(XGBRFRegressor())),
@@ -573,7 +573,8 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
 
     def get_feature_importance(pipe, fcols):
         #mask = pipe.named_steps["xfr_select"].get_support()
-        fi = zip(np.asarray(fcols), np.abs(r1.coef_))
+        r1 = pipe.named_steps["regressor"]
+        fi = zip(np.asarray(fcols), np.abs(r1.feature_importances_))
         fi = sorted(fi, key=lambda x: x[1], reverse=True)
         return fi
 
@@ -591,6 +592,7 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
 
 
     from explainerdashboard import RegressionExplainer, ExplainerDashboard
+    from explainerdashboard.dashboards import ImportancesComposite, ShapDependenceComposite, ImportancesComponent, ShapSummaryComponent
     import explainerdashboard.custom as edc
     class CustomDashboard(edc.ExplainerComponent):
         def __init__(self, explainer1, explainer2, name=None, a=1):
@@ -610,16 +612,27 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
             )
 
     from sklearn.linear_model import Lasso
-    fmax_lr = Lasso(alpha=fmaxpipe.named_steps["regressor"].alpha_)
-    fmax_lr.fit(Xfmax_T.loc[train_mask, :], alldata.loc[train_mask, [fmax_token]]/alldata[fmax_token].max())
+    #fmax_lr = Lasso(alpha=fmaxpipe.named_steps["regressor"].alpha_)
+    fmax_lr = GradientBoostingRegressor()
+    fmax_lr.fit(Xfmax_T.loc[train_mask, :], (alldata.loc[train_mask, [fmax_token]][fmax_token]/alldata[fmax_token].max()).ravel())
 
-    sicc_lr = Lasso(alpha=siccpipe.named_steps["regressor"].alpha_)
-    sicc_lr.fit(Xsicc_T.loc[train_mask, :], alldata.loc[train_mask, [fmax_token]] / alldata[fmax_token].max())
+    #sicc_lr = Lasso(alpha=siccpipe.named_steps["regressor"].alpha_)
+    sicc_lr = GradientBoostingRegressor()
+    sicc_lr.fit(Xsicc_T.loc[train_mask, :], (alldata.loc[train_mask, [sicc_token]][sicc_token] / alldata[sicc_token].max()).ravel())
 
     #fmax_explain_dash = CustomDashboard(RegressionExplainer(fmaxpipe.steps[-1][1], Xfmax_T, alldata[fmax_token]/alldata[fmax_token].max(), shap='linear'))
-    sicc_explain_dash = CustomDashboard(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]),
-                                        RegressionExplainer(fmax_lr, Xfmax_T.loc[~train_mask], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]))
-
+    # sicc_explain_dash = CustomDashboard(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]),
+    #                                     RegressionExplainer(fmax_lr, Xfmax_T.loc[~train_mask], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]))
+    #sicc_explain_dash = RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :])
+    #sicc_explain_dash = ExplainerDashboard(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, fmax_token].ravel()/alldata[fmax_token].max(), shap='linear'), name="explainer", server=server, url_base_pathname="/explainer/")
+    #sicc_explain_dash.
+    #sicc_explain_dash = ImportancesComposite(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, fmax_token].ravel()/alldata[fmax_token].max()))
+    rex = RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :],
+                        alldata.loc[~train_mask, [sicc_token]][sicc_token].ravel() / alldata[sicc_token].max())
+    print(rex.get_shap_values_df().head().max().sort_values(ascending=False))
+    sicc_explain_dash = ShapSummaryComponent(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, [sicc_token]][sicc_token].ravel()/alldata[sicc_token].max()))
+    sicc_explain_dash.register_callbacks(app)
+    
     fi_fmax = get_feature_importance(fmaxpipe, fcols)
     fi_sicc = get_feature_importance(siccpipe, fcols)
 
@@ -678,8 +691,6 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
                       row=1, col=2)
 
         fig_children.append(dcc.Graph(id=f"feature_importance_{feats}", figure=fi_fig))
-
-
 
 
     return [
@@ -879,4 +890,4 @@ def get_etest_operation(device):
 
 # Running the server
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
