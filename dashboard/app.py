@@ -547,10 +547,10 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
 
     alldata = alldata.dropna(subset=[fmax_token, sicc_token])
     alldata = alldata.set_index("TEST_END_DATE_y")
-    # alldata[fmax_token] = standardize(alldata[fmax_token])
-    # alldata[sicc_token] = standardize(alldata[sicc_token])
-    # data[fmax_token] = standardize(data[fmax_token])
-    # data[sicc_token] = standardize(data[sicc_token])
+    alldata[fmax_token] = standardize(alldata[fmax_token])
+    alldata[sicc_token] = standardize(alldata[sicc_token])
+    data[fmax_token] = standardize(data[fmax_token])
+    data[sicc_token] = standardize(data[sicc_token])
 
     train_mask = np.random.default_rng().choice([True, False], size=len(alldata), p=[0.7, 0.3])
 
