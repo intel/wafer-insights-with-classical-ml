@@ -6,8 +6,19 @@ Wafer insights is a python application that allows users to predict FMAX/IDV tok
 
 The environment can be created by using the env.yaml file in the root directory.
 
+Linux
+Note: production data extract currently only supports PyUber.
 ```bash
 conda create -f env.yaml
+```
+
+Windows
+Download zip:
+https://github.com/intel-innersource/applications.manufacturing.intel.yield.pyuber/archive/refs/heads/master.zip
+
+```bash
+conda create -f env.yaml
+pip install <your-path-to>/Downloads/applications.manufacturing.intel.yield.pyuber-master.zip
 ```
 
 ## Usage
