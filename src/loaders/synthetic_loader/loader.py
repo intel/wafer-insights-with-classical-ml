@@ -76,19 +76,19 @@ def parse_response_df(feature_df, y):
     df = pd.concat([df, feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS']]], axis=1)
     print(df.head())
 
-def store_raw_file_et(data_df, params):
+def store_raw_file_et(data_df, path = "/data/features"):
     load_start = datetime_to_pathlike_string(datetime.now() - timedelta(days=90))
     load_end = datetime_to_pathlike_string(datetime.now())
     #fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
-    fname = "/data/features" + f"/LOAD_END={load_end}"
+    fname = path + f"/LOAD_END={load_end}"
     data_df = data_df.reset_index()
 
     data_df.to_parquet(fname, partition_cols=['PROCESS','OPERATION', 'SHORTDEVICE', 'LOT7'])
 
-def store_raw_file_sp(data_df, params):
+def store_raw_file_sp(data_df, path = "/data/response"):
     load_start = datetime_to_pathlike_string(datetime.now() - timedelta(days=90))
     load_end = datetime_to_pathlike_string(datetime.now())
-    fname = "/data/response" + f"/LOAD_END={load_end}"
+    fname = path + f"/LOAD_END={load_end}"
     data_df.reset_index().to_parquet(fname, partition_cols=['SHORTDEVICE', 'OPERATION'])
 
 if __name__ == "__main__":

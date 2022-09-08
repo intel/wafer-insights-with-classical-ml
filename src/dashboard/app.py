@@ -4,8 +4,8 @@ import importlib
 import pandas as pd
 
 #get my imports
-import analytics.datasets.sort_parametrics as sortparam_dataset
-import analytics.datasets.etest as etest_dataset
+import src.analytics.datasets.sort_parametrics as sortparam_dataset
+import src.analytics.datasets.etest as etest_dataset
 
 sort_param_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
 etest_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
