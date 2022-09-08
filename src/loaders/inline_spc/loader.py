@@ -1,12 +1,13 @@
-
-from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
-from configs.configuration import get_config
-from loaders.base_loader import utils
 from datetime import datetime, timedelta
-import numpy as np
-import pandas as pd
 
-#read the config
+import numpy as np
+from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
+    set_load_finish
+from loaders.base_loader import utils
+
+from configs.configuration import get_config
+
+# read the config
 configs = get_config()
 #######################################################################################################################
 ############################################### CONSTANTS #############################################################
@@ -116,9 +117,9 @@ AND      a0.LOAD_DATE > :START AND a0.LOAD_DATE <= :END
 def datetime_to_pathlike_string(dt):
     return dt.strftime("%Y%m%d-%H%M%S")
 
-def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=timedelta(days=65), incremental_load = timedelta(hours=12)):
 
-
+def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=timedelta(days=65),
+                               incremental_load=timedelta(hours=12)):
     from datetime import timedelta, datetime
     # connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
     last_load = get_last_load(connstring, datasource, table, max_delta_load)
@@ -132,6 +133,7 @@ def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=tim
         cload += inc
 
     return loads
+
 
 @utils.retry(Exception, tries=4)
 def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
@@ -150,7 +152,6 @@ def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
             return data
 
 
-
 def clean_data(data):
     data['colnames'] = data['SPC_OPERATION'] + '`' + data['TEST_NAME'] + '`' + data['MONITOR_SET_NAME'] + '`' + data[
         'MEASUREMENT_SET_NAME'] + '`' + data['SPC_CHART_CATEGORY'] + '`' + data['SPC_CHART_SUBSET'] + '`' + data[
@@ -159,16 +160,15 @@ def clean_data(data):
     sub = data.groupby(['LOT7', 'colnames']).size()
     r = sub[sub > 1].reset_index()
 
-    #filter out degenerate column indexes
+    # filter out degenerate column indexes
     data = data[~data['colnames'].isin(r['colnames'].unique())]
 
-    #pv = pd.pivot_table(data, index=['PROCESS', 'DEVREVSTEP', 'LOT7'], columns='colnames', values='CHART_VALUE', aggfunc=np.median)
+    # pv = pd.pivot_table(data, index=['PROCESS', 'DEVREVSTEP', 'LOT7'], columns='colnames', values='CHART_VALUE', aggfunc=np.median)
 
     return data
 
 
-
-def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column,  params):
+def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column, params):
     '''params is a dictionary.  many possible chunk storage start with 'storage_path', 'load_start', 'load_end',
      'partition_columns' for the resulting parquet'''
 
@@ -184,17 +184,19 @@ def store_chunk_observational_parquet(data_df, keys_columns, columns, value_colu
     else:
         data_df.to_parquet(fname)
 
+
 def store_raw_file(data_df, params):
     load_start = datetime_to_pathlike_string(params['load_start'])
     load_end = datetime_to_pathlike_string(params['load_end'])
-    #fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
+    # fname = params['storage_path'] + f"/{load_start}--{load_end}.parquet"
     fname = params['storage_path'] + f"/LOAD_END={load_end}"
     data_df = data_df.reset_index()
 
-    data_df.to_parquet(fname, partition_cols=['PROCESS','DEVREVSTEP', 'LOT7'])
+    data_df.to_parquet(fname, partition_cols=['PROCESS', 'DEVREVSTEP', 'LOT7'])
 
-def update_cache(backload = timedelta(days=180)):
-    from connectors.database import drop_load_history_table, get_last_load
+
+def update_cache(backload=timedelta(days=180)):
+    from connectors.database import get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
@@ -219,14 +221,10 @@ def update_cache(backload = timedelta(days=180)):
         next_load += dt
 
 
-
-if __name__=="__main__":
-    import PyUber
-    from connectors.database import drop_load_history_table, drop_load_history_by_string_id
-
+if __name__ == "__main__":
+    from connectors.database import drop_load_history_by_string_id
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
-    #drop_load_history_table(mdb_connstring)
+    # drop_load_history_table(mdb_connstring)
     drop_load_history_by_string_id(mdb_connstring, "INLINE_ETEST")
     update_cache()
-

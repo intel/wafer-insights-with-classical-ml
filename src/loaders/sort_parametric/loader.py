@@ -1,11 +1,13 @@
-
-from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, set_load_finish, create_history_table
-from configs.configuration import get_config
 from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
+from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
+    set_load_finish
 
-#read the config
+from configs.configuration import get_config
+
+# read the config
 configs = get_config()
 #######################################################################################################################
 ############################################### CONSTANTS #############################################################
@@ -76,9 +78,9 @@ storage_root = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_paramet
 def datetime_to_pathlike_string(dt):
     return dt.strftime("%Y%m%d-%H%M%S")
 
-def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=timedelta(days=65), incremental_load = timedelta(hours=12)):
 
-
+def get_chunks_from_metadatadb(connstring, datasource, table, max_delta_load=timedelta(days=65),
+                               incremental_load=timedelta(hours=12)):
     from datetime import timedelta, datetime
     # connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
     last_load = get_last_load(connstring, datasource, table, max_delta_load)
@@ -110,18 +112,16 @@ def query_chunk(metadatadb_conconfig, datasource, loader_string_id, start, end):
             return data
 
 
-
 def clean_data(data):
     data['fcol_mean'] = 'fcol`' + data['TEST_NAME'] + '`MEAN'
     data['fcol_median'] = 'fcol`' + data['TEST_NAME'] + '`MEDIAN'
 
+    # pivoted parameter data
+    key = ['DEVREVSTEP', 'SHORTDEVICE', 'LOT', 'LOT7', 'WAFER3', 'PROGRAM_NAME', 'TEST_END_DATE', 'OPERATION',
+           'TEST_NAME']
 
-
-    #pivoted parameter data
-    key = ['DEVREVSTEP', 'SHORTDEVICE', 'LOT', 'LOT7', 'WAFER3', 'PROGRAM_NAME', 'TEST_END_DATE', 'OPERATION', 'TEST_NAME']
-
-    wl_data = data.groupby(by=key).agg(result_mean = pd.NamedAgg(column='RESULT', aggfunc='mean'),
-                                       result_median = pd.NamedAgg(column='RESULT', aggfunc='median'))
+    wl_data = data.groupby(by=key).agg(result_mean=pd.NamedAgg(column='RESULT', aggfunc='mean'),
+                                       result_median=pd.NamedAgg(column='RESULT', aggfunc='median'))
 
     gb = data.groupby(by=key)
     wmaps = []
@@ -131,7 +131,7 @@ def clean_data(data):
         dy = df['Y'] - df['Y'].min()
         dx = dx.astype(np.int)
         dy = dx.astype(np.int)
-        array = np.nan*np.zeros(shape=(int(dx.max()+1), int(dy.max()+1)))
+        array = np.nan * np.zeros(shape=(int(dx.max() + 1), int(dy.max() + 1)))
         array[dx, dy] = df['RESULT']
         row = [*data_key, array.tolist()]
         wmaps.append(row)
@@ -139,9 +139,7 @@ def clean_data(data):
     df = pd.DataFrame(data=wmaps, columns=[*key, 'WAFERMAP'])
     print(df.head())
 
-
     print(wl_data.head())
-
 
     # data['TESTNAME`STRUCTURE_NAME'] = data['OPERATION'] + data['TEST_NAME'] + '`' + data['STRUCTURE_NAME']
     # data['aggname_median'] = data['TESTNAME`STRUCTURE_NAME'] + '`MEDIAN'
@@ -154,8 +152,7 @@ def clean_data(data):
     return wl_data, df
 
 
-
-def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column,  params):
+def store_chunk_observational_parquet(data_df, keys_columns, columns, value_column, params):
     '''params is a dictionary.  many possible chunk storage start with 'storage_path', 'load_start', 'load_end',
      'partition_columns' for the resulting parquet'''
 
@@ -171,26 +168,28 @@ def store_chunk_observational_parquet(data_df, keys_columns, columns, value_colu
     else:
         data_df.to_parquet(fname)
 
+
 def store_raw_file(data_df, params):
     load_start = datetime_to_pathlike_string(params['load_start'])
     load_end = datetime_to_pathlike_string(params['load_end'])
     fname = params['storage_path'] + f"/LOAD_END={load_end}"
     data_df.reset_index().to_parquet(fname, partition_cols=['SHORTDEVICE', 'OPERATION'])
 
-def update_cache(backload = timedelta(days=90)):
-    from connectors.database import drop_load_history_table, get_last_load
+
+def update_cache(backload=timedelta(days=90)):
+    from connectors.database import get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
     last_load = get_last_load(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", backload)
     print(f"last_load: {last_load}")
-    #last_load = datetime.now() - timedelta(days=90)
+    # last_load = datetime.now() - timedelta(days=90)
     dt = timedelta(days=1)
 
     next_load = last_load + dt
 
     while next_load < datetime.now():
-        data= query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
+        data = query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
                            end=next_load)
         cleaned, wm = clean_data(data)
 
@@ -203,13 +202,7 @@ def update_cache(backload = timedelta(days=90)):
         next_load += dt
 
 
-
-if __name__=="__main__":
-    import PyUber
-    from connectors.database import drop_load_history_table
-
-    import PyUber
-    from connectors.database import drop_load_history_table
+if __name__ == "__main__":
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
     # drop_load_history_table(mdb_connstring)
@@ -218,7 +211,7 @@ if __name__=="__main__":
     exit()
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
-    #drop_load_history_table(mdb_connstring)
+    # drop_load_history_table(mdb_connstring)
     last_load = datetime.now() - timedelta(days=90)
     next_load = datetime.now()
     data = query_chunk(mdb_connstring, "F32_PROD_XEUS", "SORT_PARAMETRIC", start=last_load,
@@ -232,5 +225,4 @@ if __name__=="__main__":
     clean_data(data)
 
     data.to_parquet("data/sort_parametric.parquet")
-    #update_cache()
-
+    # update_cache()
