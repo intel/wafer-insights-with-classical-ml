@@ -1,9 +1,11 @@
-import pandas as pd
-import numpy as np
-import pyodbc
 import os
-import sys, traceback
-from datetime import datetime, timedelta
+import sys
+import traceback
+from datetime import timedelta
+
+import numpy as np
+import pandas as pd
+import pyodbc
 
 if os.name == 'nt':
     import PyUber
@@ -48,6 +50,7 @@ def getSchemaODBC(curs):
             schema[col[0]] = "object"
     return schema
 
+
 def standardizeSchema(schema, df):
     for col in df.columns:
         stype = schema[col]
@@ -68,6 +71,7 @@ def standardizeSchema(schema, df):
             df[col] = df[col].astype(object)
 
     return df
+
 
 def get_metadatadb_connection(conn_config):
     try:
@@ -125,18 +129,17 @@ def create_history_table(conn):
         print("-" * 60)
 
 
-def get_last_load(conn_config,  source, loader_string_id, backload_timedelta):
-    import pyodbc
+def get_last_load(conn_config, source, loader_string_id, backload_timedelta):
     default_start_time = datetime.now() - backload_timedelta
 
-    #last load will never load through PyUber.... will use raw connector
+    # last load will never load through PyUber.... will use raw connector
 
     conn = get_metadatadb_connection(conn_config)
 
-
     create_history_table(conn_config)
 
-    data = pd.read_sql("select REAL_LOAD_DATE FROM LOAD_HISTORY WHERE SOURCE=? AND LOADER_STRING_ID=? AND IS_LOADED=1", conn,
+    data = pd.read_sql("select REAL_LOAD_DATE FROM LOAD_HISTORY WHERE SOURCE=? AND LOADER_STRING_ID=? AND IS_LOADED=1",
+                       conn,
                        params=(source, loader_string_id))
     del conn
     if data.shape[0] == 0:
@@ -154,17 +157,17 @@ def insert_load_start(conn_config, param_tuple_list):
     # last load will never load through PyUber.... will use raw connector
 
     if type(conn_config) is str:
-        #could be a c connection string
+        # could be a c connection string
         conn = pyodbc.connect(conn_config)
     else:
-        #else it is a connection
+        # else it is a connection
         conn = conn_config
 
     sqlite_insert_with_param = """INSERT INTO LOAD_HISTORY
                               (END_LOAD_DATE, START_LOAD_DATE, SOURCE, LOADER_STRING_ID) 
                               VALUES (?, ?, ?, ?);"""
 
-    cursor =conn.cursor()
+    cursor = conn.cursor()
     try:
         for param_tuple in param_tuple_list:
             cursor.execute(sqlite_insert_with_param, param_tuple)
@@ -173,6 +176,7 @@ def insert_load_start(conn_config, param_tuple_list):
     except:
         del conn
         raise Exception("Failed to save load to metadata database.")
+
 
 def set_load_finish(conn_config, param_tuple):
     '''param tuple (REAL_LOAD_DATE, END_LOAD_DATE, START_LOAD_DATE, LOADER_STRING_ID, SOURCE)'''
@@ -189,7 +193,8 @@ def set_load_finish(conn_config, param_tuple):
         del conn
         raise Exception("Failed to update LOAD_HISTORY table with new data")
 
-def drop_load_history_by_string_id(conn_config, loader_string_id, data_source = None):
+
+def drop_load_history_by_string_id(conn_config, loader_string_id, data_source=None):
     conn = pyodbc.connect(conn_config)
     cursor = conn.cursor()
 
@@ -212,19 +217,20 @@ def drop_load_history_table(conn_config):
     conn.commit()
     del conn
 
-def query_data(conn,sql_text, params):
+
+def query_data(conn, sql_text, params):
     '''Params should have the following form: (start_datetime, end_datetime)'''
-    #conn = get_connection(conn_config)
+    # conn = get_connection(conn_config)
 
     curs = conn.cursor()
 
-    #need to handle the different OS configs
+    # need to handle the different OS configs
     if os.name == 'nt':
         '''PyUber wants a set of named params.  Need to unwrap the dict'''
         curs.execute(sql_text, START=params[0], END=params[1])
     else:
-        #pyodbc wants a parameter tuple with ? for parameters in the sql.  In most scripts
-        #the only params are :START, :END for the extract window
+        # pyodbc wants a parameter tuple with ? for parameters in the sql.  In most scripts
+        # the only params are :START, :END for the extract window
         sql_text = sql_text.replace(":START", "?").replace(":END", "?")
         curs.execute(sql_text, params)
 
@@ -241,15 +247,12 @@ def query_data(conn,sql_text, params):
     return df
 
 
-
 if __name__ == "__main__":
-
-
 
     last_load = get_last_load(connstring, "F32_PROD_XEUS", "INLINE_ETEST", timedelta(days=65))
 
-
     from datetime import timedelta, datetime
+
     connstring = 'DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng'
 
     last_load = get_last_load(connstring, "F32_PROD_XEUS", "INLINE_ETEST", timedelta(days=65))
@@ -264,4 +267,3 @@ if __name__ == "__main__":
     insert_load_start(connstring, loads)
 
     drop_load_history_table(connstring)
-
