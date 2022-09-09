@@ -59,6 +59,7 @@ def create_synthetic_data(observation_count=1e6):
         tostack.append(dff)
 
     data = pd.concat(tostack)
+    print(data.shape)
 
     start = datetime.now() - timedelta(days=90)
     end = datetime.now()
@@ -67,14 +68,18 @@ def create_synthetic_data(observation_count=1e6):
     times = [start + dt*idx for idx in range(data.shape[0])]
     data['TEST_END_DATE'] = times
 
-    parse_response_df(df, y)
+    response = parse_response_df(df, y)
+    return data, response
 
 def parse_response_df(feature_df, y):
     colnames = [f'response_{x}' for x in range(y.shape[1])]
     df = pd.DataFrame(data = y, columns=colnames)
 
     df = pd.concat([df, feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS']]], axis=1)
+    df['OPERATION'] = "1234"
+    print(feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS']].head())
     print(df.head())
+    return df
 
 def store_raw_file_et(data_df, path = "/data/features"):
     load_start = datetime_to_pathlike_string(datetime.now() - timedelta(days=90))
@@ -92,4 +97,7 @@ def store_raw_file_sp(data_df, path = "/data/response"):
     data_df.reset_index().to_parquet(fname, partition_cols=['SHORTDEVICE', 'OPERATION'])
 
 if __name__ == "__main__":
-    create_synthetic_data(1000)
+    features, response = create_synthetic_data(1000)
+    print(response.head())
+    #store_raw_file_et(features, "data/synthetic_etest")
+    store_raw_file_sp(response, "data/synthetic_response")
