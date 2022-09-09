@@ -22,12 +22,23 @@ def create_synthetic_data(observation_count=1e6):
     feature_names = [f"fcol`feature_{x}" for x in range(X.shape[1])]
     df = pd.DataFrame(data = X, columns=feature_names)
 
-    print(df.head())
+    data = parse_features(df)
 
+    start = datetime.now() - timedelta(days=90)
+    end = datetime.now()
+    dt = (end - start)/data.shape[0]
+
+    times = [start + dt*idx for idx in range(data.shape[0])]
+    data['TEST_END_DATE'] = times
+
+    response = parse_response_df(df, y)
+    return data, response
+
+def parse_features(df):
     lots = []
     wafers = []
     lot_counter = 0
-    wafer_counter=0
+    wafer_counter = 0
     for idx in range(df.shape[0]):
         if idx % 25 == 0:
             lot_counter += 1
@@ -44,32 +55,18 @@ def create_synthetic_data(observation_count=1e6):
     df['PROCESS'] = "1234"
     df['SHORTDEVICE'] = "DPMLD"
 
-
-
-
     tostack = []
-    #['PROCESS', 'DEVREVSTEP', 'LOT7', 'WAFER3', 'TEST_END_DATE']
+    # ['PROCESS', 'DEVREVSTEP', 'LOT7', 'WAFER3', 'TEST_END_DATE']
     print("started_stacking")
     for col in feature_names:
-        dff = df.loc[:, ['LOT7', 'WAFER3', 'PROCESS', 'SHORTDEVICE',  col]]
+        dff = df.loc[:, ['LOT7', 'WAFER3', 'PROCESS', 'SHORTDEVICE', col]]
         dff['TESTNAME`STRUCTURE_NAME'] = col
-        # dff['PROCES'] = "1234"
-        # dff['SHORTDEVICE'] = "DPMLD"
-        dff = dff.rename(columns = {col: 'TESTNAME`STRUCTURE_NAME'})
+        dff = dff.rename(columns={col: 'TESTNAME`STRUCTURE_NAME'})
         tostack.append(dff)
 
     data = pd.concat(tostack)
-    print(data.shape)
 
-    start = datetime.now() - timedelta(days=90)
-    end = datetime.now()
-    dt = (end - start)/data.shape[0]
-
-    times = [start + dt*idx for idx in range(data.shape[0])]
-    data['TEST_END_DATE'] = times
-
-    response = parse_response_df(df, y)
-    return data, response
+    return data
 
 def parse_response_df(feature_df, y):
     colnames = [f'response_{x}' for x in range(y.shape[1])]
@@ -99,5 +96,5 @@ def store_raw_file_sp(data_df, path = "/data/response"):
 if __name__ == "__main__":
     features, response = create_synthetic_data(1000)
     print(response.head())
-    #store_raw_file_et(features, "data/synthetic_etest")
-    store_raw_file_sp(response, "data/synthetic_response")
+    store_raw_file_et(features, "../../../data/synthetic_etest")
+    store_raw_file_sp(response, "../../../data/synthetic_response")
