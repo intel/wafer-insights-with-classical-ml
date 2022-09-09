@@ -49,7 +49,7 @@ This command will generate data and save it in the local directory path.
 
 ### To start the Dashboard
 
-docker run -d -v {/path/to/local/data/directory}:/data -p 127.0.0.1:8050:8050
+docker run -d -v {/path/to/local/data/directory}:/data -p 127.0.0.1:8050:8050 python /opt/src/dashboard/app.py
 
 
 ## External Dependencies
