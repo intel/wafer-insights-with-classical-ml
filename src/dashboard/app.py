@@ -478,7 +478,7 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     print(changed_id)
     if 'query-data-button' not in changed_id:
         print("not querying")
-        return "dummpy2"
+        return "dummy2"
 
     data = sortparam_dataset.load_sort_parametric(sort_param_dir, devices, start_date, end_date, fmax_token, fmax_op, sicc_token, sicc_op)
     data = data.reset_index()
@@ -590,27 +590,6 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     Xfmax_T = pd.DataFrame(data = Xfmax_T, columns=[x.replace(".", '`') for x in fcols])
     Xsicc_T = pd.DataFrame(data=Xsicc_T, columns=[x.replace(".", '`') for x in fcols])
 
-
-    from explainerdashboard import RegressionExplainer, ExplainerDashboard
-    from explainerdashboard.dashboards import ImportancesComposite, ShapDependenceComposite, ImportancesComponent, ShapSummaryComponent
-    import explainerdashboard.custom as edc
-    class CustomDashboard(edc.ExplainerComponent):
-        def __init__(self, explainer1, explainer2, name=None, a=1):
-            super().__init__(explainer1)
-            # self.swarm1 = edc.RegressionVsColComponent(explainer1, name="Explainer 1")
-            self.swarm1 = edc.ShapSummaryComponent(explainer1)
-            self.swarm2 = edc.ShapSummaryComponent(explainer2)
-        def layout(self):
-            return dbc.Container(
-                [
-                    html.H1("Explainers"),
-                    dbc.Row([
-                        dbc.Col([self.swarm1.layout()]),
-                        dbc.Col([self.swarm2.layout()])
-                    ])
-                ]
-            )
-
     from sklearn.linear_model import Lasso
     #fmax_lr = Lasso(alpha=fmaxpipe.named_steps["regressor"].alpha_)
     fmax_lr = GradientBoostingRegressor()
@@ -619,19 +598,6 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     #sicc_lr = Lasso(alpha=siccpipe.named_steps["regressor"].alpha_)
     sicc_lr = GradientBoostingRegressor()
     sicc_lr.fit(Xsicc_T.loc[train_mask, :], (alldata.loc[train_mask, [sicc_token]][sicc_token] / alldata[sicc_token].max()).ravel())
-
-    #fmax_explain_dash = CustomDashboard(RegressionExplainer(fmaxpipe.steps[-1][1], Xfmax_T, alldata[fmax_token]/alldata[fmax_token].max(), shap='linear'))
-    # sicc_explain_dash = CustomDashboard(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]),
-    #                                     RegressionExplainer(fmax_lr, Xfmax_T.loc[~train_mask], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :]))
-    #sicc_explain_dash = RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata[fmax_token].ravel()/alldata[fmax_token].max(), shap='linear', X_background=Xsicc_T.loc[train_mask, :])
-    #sicc_explain_dash = ExplainerDashboard(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, fmax_token].ravel()/alldata[fmax_token].max(), shap='linear'), name="explainer", server=server, url_base_pathname="/explainer/")
-    #sicc_explain_dash.
-    #sicc_explain_dash = ImportancesComposite(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, fmax_token].ravel()/alldata[fmax_token].max()))
-    rex = RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :],
-                        alldata.loc[~train_mask, [sicc_token]][sicc_token].ravel() / alldata[sicc_token].max())
-    print(rex.get_shap_values_df().head().max().sort_values(ascending=False))
-    sicc_explain_dash = ShapSummaryComponent(RegressionExplainer(sicc_lr, Xsicc_T.loc[~train_mask, :], alldata.loc[~train_mask, [sicc_token]][sicc_token].ravel()/alldata[sicc_token].max()))
-    sicc_explain_dash.register_callbacks(app)
     
     fi_fmax = get_feature_importance(fmaxpipe, fcols)
     fi_sicc = get_feature_importance(siccpipe, fcols)
@@ -698,7 +664,7 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
             id="svm-graph-container",
             children=dcc.Loading(
                 className="graph-wrapper",
-                children=[dcc.Graph(id="graph-sklearn-svm", figure=scat), dcc.Graph(id="graoh-sicc", figure=scat2), sicc_explain_dash.layout()],
+                children=[dcc.Graph(id="graph-sklearn-svm", figure=scat), dcc.Graph(id="graoh-sicc", figure=scat2)],
                 style={"display": "none"},
             ),
         ),
