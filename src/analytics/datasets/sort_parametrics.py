@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pyarrow.parquet as pq
 
 sort_parametric_path = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
 
