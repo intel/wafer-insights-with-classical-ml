@@ -1,39 +1,31 @@
 import time
 from datetime import datetime, timedelta
-import importlib
+from os import environ
 import pandas as pd
-
+import numpy as np
 #get my imports
 import src.analytics.datasets.sort_parametrics as sortparam_dataset
 import src.analytics.datasets.etest as etest_dataset
 
-sort_param_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
-etest_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
+# sort_param_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
+# etest_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
 
+sort_param_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/synthetic_response"
+etest_dir = "C:/Users/eander2/PycharmProjects/WaferInsights/data/synthetic_etest"
+
+if environ.get('OUTPUT_DIR') is not None:
+    rpath = environ.get('OUTPUT_DIR')
+    sort_param_dir = rpath + "/data/synthetic_response"
+    etest_dir = rpath + "/data/synthetic_etest"
+
+# Dash Imports
 import dash
-# import dash_core_components as dcc
-from dash import dcc
-
 from dash import html
-import numpy as np
-from dash.dependencies import Input, Output, State
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn import datasets
-from sklearn.svm import SVC
-
+from dash.dependencies import Input, Output
 import utils.dash_reusable_components as drc
-
 from dash import dcc
-import utils.figures as figs
-import dash_bootstrap_components as dbc
 
-def excess_mass(series):
-    median = series.median()
-    stddev = series.stddev()
-
-
-
+# Dash App Definition
 app = dash.Dash(
     __name__,
     meta_tags=[
@@ -44,37 +36,37 @@ app.title = "Wafer Insights"
 server = app.server
 
 
-def generate_data(n_samples, dataset, noise):
-    if isinstance(dataset, list):
-        dataset = dataset[0]
-    if dataset == "moons":
-        return datasets.make_moons(n_samples=n_samples, noise=noise, random_state=0)
-
-    elif dataset == "circles":
-        return datasets.make_circles(
-            n_samples=n_samples, noise=noise, factor=0.5, random_state=1
-        )
-
-    elif dataset == "linear":
-        X, y = datasets.make_classification(
-            n_samples=n_samples,
-            n_features=2,
-            n_redundant=0,
-            n_informative=2,
-            random_state=2,
-            n_clusters_per_class=1,
-        )
-
-        rng = np.random.RandomState(2)
-        X += noise * rng.uniform(size=X.shape)
-        linearly_separable = (X, y)
-
-        return linearly_separable
-
-    else:
-        raise ValueError(
-            "Data type incorrectly specified. Please choose an existing dataset."
-        )
+# def generate_data(n_samples, dataset, noise):
+#     if isinstance(dataset, list):
+#         dataset = dataset[0]
+#     if dataset == "moons":
+#         return datasets.make_moons(n_samples=n_samples, noise=noise, random_state=0)
+#
+#     elif dataset == "circles":
+#         return datasets.make_circles(
+#             n_samples=n_samples, noise=noise, factor=0.5, random_state=1
+#         )
+#
+#     elif dataset == "linear":
+#         X, y = datasets.make_classification(
+#             n_samples=n_samples,
+#             n_features=2,
+#             n_redundant=0,
+#             n_informative=2,
+#             random_state=2,
+#             n_clusters_per_class=1,
+#         )
+#
+#         rng = np.random.RandomState(2)
+#         X += noise * rng.uniform(size=X.shape)
+#         linearly_separable = (X, y)
+#
+#         return linearly_separable
+#
+#     else:
+#         raise ValueError(
+#             "Data type incorrectly specified. Please choose an existing dataset."
+#         )
 
 
 app.layout = html.Div(
@@ -93,20 +85,8 @@ app.layout = html.Div(
                             children=[
                                 html.A(
                                     "WaferInsights",
-                                    href="https://github.com/plotly/dash-svm",
-                                    style={
-                                        "text-decoration": "none",
-                                        "color": "inherit",
-                                    },
                                 )
                             ],
-                        ),
-                        html.A(
-                            id="banner-logo",
-                            children=[
-                                html.Img(src=app.get_asset_url("dash-logo-new.png"))
-                            ],
-                            href="https://plot.ly/products/dash/",
                         ),
                     ],
                 )
@@ -217,178 +197,12 @@ app.layout = html.Div(
 
                                     ]
                                 ),
-                                drc.Card(
-                                    id="first-card",
-                                    children=[
-                                        drc.NamedDropdown(
-                                            name="Select Dataset",
-                                            id="dropdown-select-dataset",
-                                            options=[
-                                                {"label": "Moons", "value": "moons"},
-                                                {
-                                                    "label": "Linearly Separable",
-                                                    "value": "linear",
-                                                },
-                                                {
-                                                    "label": "Circles",
-                                                    "value": "circles",
-                                                },
-                                            ],
-                                            clearable=False,
-                                            searchable=False,
-                                            value="moons",
-                                            multi=True
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Sample Size",
-                                            id="slider-dataset-sample-size",
-                                            min=100,
-                                            max=500,
-                                            step=100,
-                                            marks={
-                                                str(i): str(i)
-                                                for i in [100, 200, 300, 400, 500]
-                                            },
-                                            value=300,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Noise Level",
-                                            id="slider-dataset-noise-level",
-                                            min=0,
-                                            max=1,
-                                            marks={
-                                                i / 10: str(i / 10)
-                                                for i in range(0, 11, 2)
-                                            },
-                                            step=0.1,
-                                            value=0.2,
-                                        ),
-                                    ],
-                                ),
-                                drc.Card(
-                                    id="button-card",
-                                    children=[
-                                        drc.NamedSlider(
-                                            name="Threshold",
-                                            id="slider-threshold",
-                                            min=0,
-                                            max=1,
-                                            value=0.5,
-                                            step=0.01,
-                                        ),
-                                        html.Button(
-                                            "Reset Threshold",
-                                            id="button-zero-threshold",
-                                        ),
-                                    ],
-                                ),
-                                drc.Card(
-                                    id="last-card",
-                                    children=[
-                                        drc.NamedDropdown(
-                                            name="Kernel",
-                                            id="dropdown-svm-parameter-kernel",
-                                            options=[
-                                                {
-                                                    "label": "Radial basis function (RBF)",
-                                                    "value": "rbf",
-                                                },
-                                                {"label": "Linear", "value": "linear"},
-                                                {
-                                                    "label": "Polynomial",
-                                                    "value": "poly",
-                                                },
-                                                {
-                                                    "label": "Sigmoid",
-                                                    "value": "sigmoid",
-                                                },
-                                            ],
-                                            value="rbf",
-                                            clearable=False,
-                                            searchable=False,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Cost (C)",
-                                            id="slider-svm-parameter-C-power",
-                                            min=-2,
-                                            max=4,
-                                            value=0,
-                                            marks={
-                                                i: "{}".format(10 ** i)
-                                                for i in range(-2, 5)
-                                            },
-                                        ),
-                                        drc.FormattedSlider(
-                                            id="slider-svm-parameter-C-coef",
-                                            min=1,
-                                            max=9,
-                                            value=1,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Degree",
-                                            id="slider-svm-parameter-degree",
-                                            min=2,
-                                            max=10,
-                                            value=3,
-                                            step=1,
-                                            marks={
-                                                str(i): str(i) for i in range(2, 11, 2)
-                                            },
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Gamma",
-                                            id="slider-svm-parameter-gamma-power",
-                                            min=-5,
-                                            max=0,
-                                            value=-1,
-                                            marks={
-                                                i: "{}".format(10 ** i)
-                                                for i in range(-5, 1)
-                                            },
-                                        ),
-                                        drc.FormattedSlider(
-                                            id="slider-svm-parameter-gamma-coef",
-                                            min=1,
-                                            max=9,
-                                            value=5,
-                                        ),
-                                        html.Div(
-                                            id="shrinking-container",
-                                            children=[
-                                                html.P(children="Shrinking"),
-                                                dcc.RadioItems(
-                                                    id="radio-svm-parameter-shrinking",
-                                                    labelStyle={
-                                                        "margin-right": "7px",
-                                                        "display": "inline-block",
-                                                    },
-                                                    options=[
-                                                        {
-                                                            "label": " Enabled",
-                                                            "value": "True",
-                                                        },
-                                                        {
-                                                            "label": " Disabled",
-                                                            "value": "False",
-                                                        },
-                                                    ],
-                                                    value="True",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
                             ],
                         ),
                         html.Div(
                             id="div-graphs",
                             children=dcc.Graph(
-                                id="graph-sklearn-svm",
-                                figure=dict(
-                                    layout=dict(
-                                        plot_bgcolor="#282b38", paper_bgcolor="#282b38"
-                                    )
-                                ),
+                                id="graph-sklearn-scatter",
                             ),
                         ),
                     ],
@@ -397,54 +211,6 @@ app.layout = html.Div(
         ),
     ]
 )
-
-
-@app.callback(
-    Output("slider-svm-parameter-gamma-coef", "marks"),
-    [Input("slider-svm-parameter-gamma-power", "value")],
-)
-def update_slider_svm_parameter_gamma_coef(power):
-    scale = 10 ** power
-    return {i: str(round(i * scale, 8)) for i in range(1, 10, 2)}
-
-
-@app.callback(
-    Output("slider-svm-parameter-C-coef", "marks"),
-    [Input("slider-svm-parameter-C-power", "value")],
-)
-def update_slider_svm_parameter_C_coef(power):
-    scale = 10 ** power
-    return {i: str(round(i * scale, 8)) for i in range(1, 10, 2)}
-
-@app.callback(
-    Output("slider-threshold", "value"),
-    [Input("button-zero-threshold", "n_clicks")],
-    [State("graph-sklearn-svm", "figure")],
-)
-def reset_threshold_center(n_clicks, figure):
-    if n_clicks:
-        Z = np.array(figure["data"][0]["z"])
-        value = -Z.min() / (Z.max() - Z.min())
-    else:
-        value = 0.4959986285375595
-    return value
-
-
-# Disable Sliders if kernel not in the given list
-@app.callback(
-    Output("slider-svm-parameter-degree", "disabled"),
-    [Input("dropdown-svm-parameter-kernel", "value")],
-)
-def disable_slider_param_degree(kernel):
-    return kernel != "poly"
-
-
-@app.callback(
-    Output("slider-svm-parameter-gamma-coef", "disabled"),
-    [Input("dropdown-svm-parameter-kernel", "value")],
-)
-def disable_slider_param_gamma_coef(kernel):
-    return kernel not in ["rbf", "poly", "sigmoid"]
 
 
 @app.callback(
@@ -498,19 +264,17 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     from sklearn.pipeline import  Pipeline
     from sklearn.preprocessing import RobustScaler, MinMaxScaler,  QuantileTransformer, PowerTransformer
     from sklearn.impute import SimpleImputer
-    from sklearn.linear_model import LassoCV, ElasticNetCV
-    from sklearn import linear_model
-    from sklearn.feature_selection import VarianceThreshold, SelectFromModel, mutual_info_regression, SelectKBest, r_regression
-    from sklearn.ensemble import GradientBoostingRegressor
     from sklearn.model_selection import TimeSeriesSplit
-    from xgboost import XGBRegressor, XGBRFRegressor
-    from sklearn.decomposition import PCA
+    from sklearn.linear_model import LassoCV
+
+    from sklearn.ensemble import GradientBoostingRegressor
+
     #QuantileTransformer(output_distribution='normal')
-    #fmaxpipe = Pipeline([('scaler', StandardScaler()), ('vt', VarianceThreshold(0.8*(1-0.8))), ("imputer", SimpleImputer()), ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5]))])GradientBoostingRegressor( cv=TimeSeriesSplit(n_splits=3)))]
+    #fmaxpipe = Pipeline([('scaler', StandardScaler()), ('vt', VarianceThreshold(0.8*(1-0.8))), ("imputer", SimpleImputer()), ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5], cv=TimeSeriesSplit(n_splits=3)))])GradientBoostingRegressor( cv=TimeSeriesSplit(n_splits=3)))]
     fmaxpipe = Pipeline([ ('scaler', QuantileTransformer(output_distribution='normal')), ("imputer", SimpleImputer()),
-                         ('regressor',  GradientBoostingRegressor())])
+                         ('regressor',  LassoCV(alphas=[0.001, 0.01, 0.1, 0.5], cv=TimeSeriesSplit(n_splits=3)))])
     siccpipe = Pipeline([ ('scaler', QuantileTransformer(output_distribution='normal')),("imputer", SimpleImputer()),
-                         ('regressor',  GradientBoostingRegressor())])
+                         ('regressor',  LassoCV(alphas=[0.001, 0.01, 0.1, 0.5], cv=TimeSeriesSplit(n_splits=3)))])
 
 
 
@@ -557,24 +321,11 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
     fmaxpipe.fit(alldata.loc[train_mask, fcols], alldata.loc[train_mask, [fmax_token]]/alldata[fmax_token].max())
     siccpipe.fit(alldata.loc[train_mask, fcols], alldata.loc[train_mask, [sicc_token]]/alldata[sicc_token].max())
 
-    r1 = fmaxpipe.named_steps["regressor"]
-    print("mse_path")
-    #print(f"alpha {r1.alpha_}")
-    #aidx = list(r1.alphas_).index(r1.alpha_)
-    #print(fmaxpipe.named_steps["regressor"].mse_path_[aidx])
-    # siccpipe = Pipeline(
-    #     [('scaler', QuantileTransformer(output_distribution='normal')), ('vt', VarianceThreshold(0.9 * (1 - 0.9))),
-    #      ("imputer", SimpleImputer()), ("xfr_select", SelectFromModel(XGBRFRegressor())),
-    #      ("feature_selection", SelectKBest(r_regression, k='all')),
-    #      ('regressor', LassoCV(cv=TimeSeriesSplit(n_splits=3)))])
-
-    import shap
-
 
     def get_feature_importance(pipe, fcols):
         #mask = pipe.named_steps["xfr_select"].get_support()
         r1 = pipe.named_steps["regressor"]
-        fi = zip(np.asarray(fcols), np.abs(r1.feature_importances_))
+        fi = zip(np.asarray(fcols), np.abs(r1.coef_))
         fi = sorted(fi, key=lambda x: x[1], reverse=True)
         return fi
 
@@ -664,7 +415,7 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
             id="svm-graph-container",
             children=dcc.Loading(
                 className="graph-wrapper",
-                children=[dcc.Graph(id="graph-sklearn-svm", figure=scat), dcc.Graph(id="graoh-sicc", figure=scat2)],
+                children=[dcc.Graph(id="graph-sklearn-scatter", figure=scat), dcc.Graph(id="graph-sicc", figure=scat2)],
                 style={"display": "none"},
             ),
         ),
