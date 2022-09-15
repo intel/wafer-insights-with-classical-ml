@@ -9,6 +9,8 @@
   - PTH_POWER_SDT_SICC_ALLCORES_SCALED_V2
   - IDV_2204_XNOM3GNES12_FULLDIE_0950_MED
   - PP_PWR_SICC_GLC0_V1
+  - response_0
+  - response_1
 "SORT_PARAMETRIC_PATH":
   "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
 "ETEST_PATH":
