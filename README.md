@@ -21,19 +21,34 @@ conda create -f env.yaml
 pip install <your-path-to>/Downloads/applications.manufacturing.intel.yield.pyuber-master.zip
 ```
 
-## Usage
+## Bare Metal Usage
 
-To start the dashboard
+Environment Creation:
+
+```bash
+conda create -n WI scikit-learn pandas pyrrow
+conda activate WI
+pip install dash
+````
+
+To generate synthetic data for testing from root directory:
+
 ```bash
 conda activate WI
-cd dashboard
-python app.py
+python src/loaders/synthetic/loader/loader.py
 ```
 
-To run loaders to update local caches from production database:
+To run the dashboard:
+
 ```bash
-python <loader_name>/loader.py
+conda activate WI
+python src/dashboard/app.py
 ```
+
+The default dashboard location is:
+
+http://127.0.0.1:8050/
+
 
 ## Docker Usage
 
