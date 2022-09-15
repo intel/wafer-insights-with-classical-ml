@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from os import environ
 from sklearn.datasets import make_regression
 from datetime import datetime, timedelta
 
@@ -22,19 +23,23 @@ def create_synthetic_data(observation_count=1e6):
     feature_names = [f"fcol`feature_{x}" for x in range(X.shape[1])]
     df = pd.DataFrame(data = X, columns=feature_names)
 
-    data = parse_features(df)
-
     start = datetime.now() - timedelta(days=90)
     end = datetime.now()
-    dt = (end - start)/data.shape[0]
+    dt = (end - start) / df.shape[0]
 
-    times = [start + dt*idx for idx in range(data.shape[0])]
-    data['TEST_END_DATE'] = times
+    times = [start + dt * idx for idx in range(df.shape[0])]
+    df['TEST_END_DATE'] = times
+    print(df.head())
+    data = parse_features(df)
+
+
 
     response = parse_response_df(df, y)
     return data, response
 
 def parse_features(df):
+    feature_names = list(df.columns)
+    feature_names.remove('TEST_END_DATE')
     lots = []
     wafers = []
     lot_counter = 0
@@ -53,18 +58,22 @@ def parse_features(df):
     df['LOT7'] = lots
     df['WAFER3'] = wafers
     df['PROCESS'] = "1234"
+    df['OPERATION'] = "6543"
     df['SHORTDEVICE'] = "DPMLD"
+    df['TESTNAME'] = "TEST1"
 
     tostack = []
     # ['PROCESS', 'DEVREVSTEP', 'LOT7', 'WAFER3', 'TEST_END_DATE']
     print("started_stacking")
     for col in feature_names:
-        dff = df.loc[:, ['LOT7', 'WAFER3', 'PROCESS', 'SHORTDEVICE', col]]
+        dff = df.loc[:, ['LOT7', 'WAFER3', 'PROCESS','OPERATION','SHORTDEVICE', 'TESTNAME', 'TEST_END_DATE', col]]
+        dff['DEVREVSTEP'] = dff['SHORTDEVICE']
         dff['TESTNAME`STRUCTURE_NAME'] = col
-        dff = dff.rename(columns={col: 'TESTNAME`STRUCTURE_NAME'})
+        dff = dff.rename(columns={col: 'MEDIAN'})
         tostack.append(dff)
 
-    data = pd.concat(tostack)
+    data = pd.concat(tostack, axis=0)
+    print(data.head())
 
     return data
 
@@ -72,11 +81,28 @@ def parse_response_df(feature_df, y):
     colnames = [f'response_{x}' for x in range(y.shape[1])]
     df = pd.DataFrame(data = y, columns=colnames)
 
-    df = pd.concat([df, feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS']]], axis=1)
+
+    df = pd.concat([df, feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS', 'TEST_END_DATE']]], axis=1)
     df['OPERATION'] = "1234"
-    print(feature_df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS']].head())
-    print(df.head())
-    return df
+    tostack = []
+
+    for col in colnames:
+        dfs = df.loc[:, ['LOT7', 'WAFER3', 'SHORTDEVICE', 'PROCESS', 'OPERATION', 'TEST_END_DATE', col]]
+        dfs['LOT'] = dfs['LOT7']
+        dfs['PROGRAM_NAME'] = 'TEST'
+        dfs['TEST_NAME'] = col
+        dfs  = dfs.rename(columns={col: 'result_median'})
+        tostack.append(dfs)
+
+    alldf = pd.concat(tostack, axis=0)
+    maxt = alldf['TEST_END_DATE'].max()
+
+    filterpoint = maxt - timedelta(days=10)
+
+    alldfs = alldf[alldf['TEST_END_DATE'] < filterpoint]
+
+    return alldfs
+
 
 def store_raw_file_et(data_df, path = "/data/features"):
     load_start = datetime_to_pathlike_string(datetime.now() - timedelta(days=90))
@@ -94,7 +120,20 @@ def store_raw_file_sp(data_df, path = "/data/response"):
     data_df.reset_index().to_parquet(fname, partition_cols=['SHORTDEVICE', 'OPERATION'])
 
 if __name__ == "__main__":
-    features, response = create_synthetic_data(1000)
-    print(response.head())
-    store_raw_file_et(features, "../../../data/synthetic_etest")
-    store_raw_file_sp(response, "../../../data/synthetic_response")
+    et_path = "../../../data/synthetic_etest"
+    sp_path = "../../../data/synthetic_response"
+
+    if environ.get('OUTPUT_DIR') is not None:
+        rpath = environ.get('OUTPUT_DIR')
+        et_path = rpath + "/data/synthetic_etest"
+        sp_path = rpath + "/data/synthetic_response"
+
+    num_samples = 25000
+
+    if environ.get("NUM_SAMPLES") is not None:
+        num_samples = int(environ.get("NUM_SAMPLES"))
+
+    features, response = create_synthetic_data(num_samples)
+
+    store_raw_file_et(features, et_path)
+    store_raw_file_sp(response, sp_path)
