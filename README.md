@@ -13,7 +13,7 @@ conda create -f env.yaml
 ```
 
 Windows
-Download zip:
+Download zip file from folliwng URL:
 https://github.com/intel-innersource/applications.manufacturing.intel.yield.pyuber/archive/refs/heads/master.zip
 
 ```bash
@@ -41,11 +41,12 @@ python src/loaders/synthetic/loader/loader.py
 To run the dashboard:
 
 ```bash
+export PYTHONPATH="$PYTHONPATH:$PWD"
 conda activate WI
 python src/dashboard/app.py
 ```
 
-The default dashboard url is:
+The default dashboard URL is:
 
 http://127.0.0.1:8050/
 
