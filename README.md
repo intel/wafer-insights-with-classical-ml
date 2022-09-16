@@ -45,26 +45,8 @@ conda activate WI
 python src/dashboard/app.py
 ```
 
-The default dashboard location is:
+The default dashboard url is:
 
 http://127.0.0.1:8050/
 
 
-## Docker Usage
-
-### To build the image:
-
-docker build -t WaferInsights
-
-### Generate Data For Modelling
-
-docker run -v {/path/to/local/data/directory}:/data WaferInsights python /opt/src/loaders/synthetic_loader/loader.py
-
-This command will generate data and save it in the local directory path.
-
-### To start the Dashboard
-
-docker run -d -v {/path/to/local/data/directory}:/data -p 127.0.0.1:8050:8050 python /opt/src/dashboard/app.py
-
-
-## External Dependencies
