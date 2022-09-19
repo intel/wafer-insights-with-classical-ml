@@ -41,7 +41,7 @@ python src/loaders/synthetic/loader/loader.py
 To run the dashboard:
 
 ```bash
-export PYTHONPATH="$PYTHONPATH:$PWD"
+export PYTHONPATH=$PYTHONPATH:$PWD
 conda activate WI
 python src/dashboard/app.py
 ```
