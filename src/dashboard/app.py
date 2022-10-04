@@ -205,10 +205,9 @@ def query_data(n_clicks, devices, process, start_date, end_date, fmax_token, sic
 
 
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    print(changed_id)
+
     if 'query-data-button' not in changed_id:
-        print("not querying")
-        return "dummy2"
+        return "Please Select Data"
 
     data = sortparam_dataset.load_sort_parametric(sort_param_dir, devices, start_date, end_date, fmax_token, fmax_op, sicc_token, sicc_op)
     data = data.reset_index()
