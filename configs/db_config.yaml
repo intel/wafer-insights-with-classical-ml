@@ -1,6 +1,0 @@
-D1D_PROD_XEUS: "Driver={DB2};Database=FEDDB;Hostname=Rf3Pxap420.rf3prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=D1DS"
-F32_PROD_XEUS: "Driver={DB2};Database=FEDDB;Hostname=F32Pxap420.f32prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=F32S;"
-F28_PROD_XEUS: "Driver={DB2};Database=FEDDB;Hostname=F28Pxap420.F28prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=F28S;"
-F24_PROD_XEUS: "Driver={DB2};Database=FEDDB;Hostname=F24Pxap420.F24prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=F24S;"
-D1D_CENTRAL_PROD_XEUS: "Driver={DB2};Database=FEDDB;Hostname=Rf3Pxap420.rf3prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=D1D;"
-D1D_PROD_BORIS_1274: "Driver={DB2};Database=FEDDB;Hostname=Rf3Pxap420.rf3prod.mfg.intel.com;Port=50001;Protocol=TCPIP;CurrentSchema=D1D_PROD_BORIS_1274;"
