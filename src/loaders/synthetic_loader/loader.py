@@ -14,7 +14,7 @@ def create_synthetic_data(observation_count=1e6):
     n_targets = 2
     effective_rank=100
     tail_strength = 0.5
-    noise=0.1
+    noise=0.0
 
     X, y = make_regression(n_features=n_features, n_samples=n_samples, n_informative=n_informative,
                            n_targets=n_targets, effective_rank=effective_rank, tail_strength=tail_strength, noise=noise)
