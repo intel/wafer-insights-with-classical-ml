@@ -29,6 +29,6 @@ python src/dashboard/app.py
 
 The default dashboard URL is:
 
-http://127.0.0.1:8050/
+http://0.0.0.0:8050/
 
 
