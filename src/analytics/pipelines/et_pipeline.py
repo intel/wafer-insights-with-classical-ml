@@ -7,7 +7,7 @@ from sklearn.linear_model import LassoCV
 from sklearn.ensemble import GradientBoostingRegressor
 import pandas as pd
 import numpy as np
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 
 def standardize(column):
@@ -16,8 +16,7 @@ def standardize(column):
 def get_model(data, alldata, prediction_data, edata, fmax_token, sicc_token):
 
 
-    # QuantileTransformer(output_distribution='normal')
-    # fmaxpipe = Pipeline([('scaler', StandardScaler()), ('vt', VarianceThreshold(0.8*(1-0.8))), ("imputer", SimpleImputer()), ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5], cv=TimeSeriesSplit(n_splits=3)))])GradientBoostingRegressor( cv=TimeSeriesSplit(n_splits=3)))]
+
     fmaxpipe = Pipeline([('scaler', QuantileTransformer(output_distribution='normal')), ("imputer", SimpleImputer()),
                          ('regressor', LassoCV(alphas=[0.001, 0.01, 0.1, 0.5], cv=TimeSeriesSplit(n_splits=3)))])
     siccpipe = Pipeline([('scaler', QuantileTransformer(output_distribution='normal')), ("imputer", SimpleImputer()),
@@ -62,8 +61,12 @@ def get_model(data, alldata, prediction_data, edata, fmax_token, sicc_token):
 
     train_mask = np.random.default_rng().choice([True, False], size=len(alldata), p=[0.7, 0.3])
 
+    pipe_start = datetime.now()
     fmaxpipe.fit(alldata.loc[train_mask, fcols], alldata.loc[train_mask, [fmax_token]] / alldata[fmax_token].max())
     siccpipe.fit(alldata.loc[train_mask, fcols], alldata.loc[train_mask, [sicc_token]] / alldata[sicc_token].max())
+    pipe_end = datetime.now()
+
+    print(f"Pipeline fit took: {(pipe_end - pipe_start).total_seconds()}")
 
     def get_feature_importance(pipe, fcols):
         # mask = pipe.named_steps["xfr_select"].get_support()
@@ -79,8 +82,13 @@ def get_model(data, alldata, prediction_data, edata, fmax_token, sicc_token):
 
         return Xt
 
+    transform_start = datetime.now()
     Xfmax_T = get_transform(fmaxpipe, alldata.loc[:, fcols])
     Xsicc_T = get_transform(siccpipe, alldata.loc[:, fcols])
+    transform_end = datetime.now()
+
+    print(f"Forward Transforms on inference data took: {(transform_end - transform_start).total_seconds()}")
+
     Xfmax_T = pd.DataFrame(data=Xfmax_T, columns=[x.replace(".", '`') for x in fcols])
     Xsicc_T = pd.DataFrame(data=Xsicc_T, columns=[x.replace(".", '`') for x in fcols])
 
@@ -98,11 +106,17 @@ def get_model(data, alldata, prediction_data, edata, fmax_token, sicc_token):
     fi_fmax = get_feature_importance(fmaxpipe, fcols)
     fi_sicc = get_feature_importance(siccpipe, fcols)
 
+
+    inference_start = datetime.now()
     prediction_data['FMAX_Predict'] = fmaxpipe.predict(prediction_data.loc[:, fcols]) * alldata[fmax_token].max()
     prediction_data['SICC_Predict'] = siccpipe.predict(prediction_data.loc[:, fcols]) * alldata[sicc_token].max()
 
+
     alldata['FMAX_PREDICT'] = fmaxpipe.predict(alldata.loc[:, fcols]) * alldata[fmax_token].max()
     alldata['SICC_PREDICT'] = siccpipe.predict(alldata.loc[:, fcols]) * alldata[sicc_token].max()
+    inference_end = datetime.now()
+
+    print(f"Inference Time: {(inference_end - inference_start).total_seconds()}")
 
     # prediction_data = prediction_data.set_index('SORT_DATE')
     prediction_data = prediction_data.sort_values('SORT_DATE').set_index("SORT_DATE")
