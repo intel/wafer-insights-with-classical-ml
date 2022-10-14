@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
+from src.connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
     set_load_finish
 
 from configs.configuration import get_config
@@ -177,7 +177,7 @@ def store_raw_file(data_df, params):
 
 
 def update_cache(backload=timedelta(days=90)):
-    from connectors.database import get_last_load
+    from src.connectors.database import get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
@@ -203,9 +203,9 @@ def update_cache(backload=timedelta(days=90)):
 
 
 if __name__ == "__main__":
-
+    from src.connectors.database import drop_load_history_by_string_id
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
-    # drop_load_history_table(mdb_connstring)
+    drop_load_history_by_string_id(mdb_connstring, "SORT_PARAMETRIC")
     update_cache()
 
     exit()
