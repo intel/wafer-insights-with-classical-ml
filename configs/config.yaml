@@ -1,5 +1,5 @@
 "1274":
-  - DEV01
+  - 8PFU
   - 8PFU
   - 8PJS
   - 8PJR
@@ -11,10 +11,10 @@
   - IDV_2204_XNOM3GNES12_FULLDIE_0950_MED
   - PP_PWR_SICC_GLC0_V1
 "SORT_PARAMETRIC_PATH":
-  "/data/sort_parametric"
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric"
 "ETEST_PATH":
-  "/data/inline_etest"
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_etest"
 "SORT_PARAMETRIC_WAFERMAP_PATH":
-  "/data/sort_parametric_wafermap"
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/sort_parametric_wafermap"
 "SPC_PATH":
-  "/data/inline_spc"
+  "C:/Users/eander2/PycharmProjects/WaferInsights/data/inline_spc"
