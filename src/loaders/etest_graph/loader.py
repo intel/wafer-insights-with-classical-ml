@@ -1,7 +1,7 @@
-from connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
+from src.connectors.database import get_connection, get_metadatadb_connection, query_data, insert_load_start, \
     set_load_finish
 from configs.configuration import get_config
-from loaders.base_loader import utils
+from src.loaders.base_loader import utils
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -132,7 +132,7 @@ def store_raw_file(data_df, params):
 
 
 def update_cache(backload=timedelta(days=180)):
-    from connectors.database import get_last_load
+    from src.connectors.database import get_last_load
 
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
 
@@ -158,6 +158,7 @@ def update_cache(backload=timedelta(days=180)):
 
 
 if __name__ == "__main__":
+    from src.connectors.database import drop_load_history_by_string_id
     mdb_connstring = "DRIVER={PostgreSQL Unicode(x64)};Port=5432;Database=test;UID=postgres;PWD=K1ll3rk1ng"
-
+    drop_load_history_by_string_id(mdb_connstring, "INLINE_ETEST")
     update_cache()
