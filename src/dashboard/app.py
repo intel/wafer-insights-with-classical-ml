@@ -10,6 +10,12 @@ import src.analytics.pipelines.et_pipeline as et_pipeline
 sort_param_dir = "../../data/synthetic_response"
 etest_dir = "../../data/synthetic_etest"
 
+environ['USER_REAL_DATA'] = "True"
+
+if environ.get("USE_REAL_DATA") is not None:
+    sort_param_dir = "../../data/sort_parametric"
+    etest_dir = "../../data/inline_etest"
+
 if environ.get('OUTPUT_DIR') is not None:
     rpath = environ.get('OUTPUT_DIR')
     sort_param_dir = rpath + "/data/synthetic_response"
