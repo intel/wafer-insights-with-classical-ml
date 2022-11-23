@@ -1,0 +1,13 @@
+"1274":
+  - DEV01
+"TOKENS":
+  - response_0
+  - response_1
+"SORT_PARAMETRIC_PATH":
+  "/data/sort_parametric"
+"ETEST_PATH":
+  "/data/inline_etest"
+"SORT_PARAMETRIC_WAFERMAP_PATH":
+  "/data/sort_parametric_wafermap"
+"SPC_PATH":
+  "/data/inline_spc"
