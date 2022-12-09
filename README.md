@@ -29,7 +29,7 @@ Inference           |  Inference Transformed          | Pipeline Fit|
 :-------------------------:|:-------------------------:|:-------------------------:
 ![](plots/inference.png)  |  ![](plots/inference_transform.png) | ![](plots/pipeline_fit.png)
 
-The numbers shown in the plots are the timings for the different components with and without Intel optimizations. The Intel optimization refers to the scikit monkey patch. Inference shown in the image is the actual machine learning inference. Inference transformed is the data transforms associated with the inference pass. Pipeline fit are the data transform and machine learning model fit. The performance numbers can be produced with the benchmark script found in the `src` folder.
+The numbers shown in the plots are the timings for the different components with and without Intel optimizations. The Intel optimizations refer to Intel(R) Extension for Scikit-Learn being utilized where indicated. Inference shown in the image is the actual machine learning inference. Inference transformed is the data transforms associated with the inference pass. Pipeline fit are the data transform and machine learning model fit. The performance numbers can be produced with the benchmark script found in the `src` folder.
 
 ### Dataset
 The actual measurement data from the fab are not allowed to be shared with the public, thus we provide a synthetic data loader to generate synthetic data using the `make_regression` function from sklearn, which has the following format:
