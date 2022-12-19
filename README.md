@@ -1,88 +1,122 @@
 # T6: WaferInsights Workflow
+## Overview
+Wafer Insights is a python application that allows users to predict FMAX/IDV tokens based on multiple data sources measured in fab.
 
-WaferInsights is a python application that allows users to predict FMAX/IDV tokens based on multiple data sources measured in fab.
+## How it Works
+Wafer Insights is an interactive data-visualization web application based on Dash and Plotly. It includes 2 major components: a data loader, which generates synthetic fab data for visualization, and a dash app that provides an interface for users to analyze the data and gain insight. Dash is written on top of Plotly.js and React.js, providing an ideal framework for building and deploying data apps with customized user interfaces. The `src/dashboard` folder contains the code for the dash app and the `src/loaders` folder contains the code for the data loader.
 
-## Table of Contents
-- [Implementation Details](#implementation-details)
-    - [Architecture](#architecture)
-    - [Software Dependencies](#software-dependencies)
-    - [Performance](#performance)
-    - [Dataset](#dataset)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-    - [Data Preprocessing](#data-preprocessing)
-    - [Training](#training)
-    - [Inference](#inference)
-- [License](#license)
+## Get Started 
 
-## Implementation Details 
+### **Prerequisites**
 
-### Architecture
-At its core, WaferInsights is an interactive data-visualization web application based on Dash and Plotly. It includes 2 major components: a data loader which generates synthetic fab data for visualization and a dash app which provides an interface for users to play around with the data and to gain insights of the data. Dash is written on top of Plotly.js and React.js and is an ideal framework for building and deploying data apps with customized user interfaces. The folder `src/dashboard` contains code of the dash app and the `src/loaders` folder contains code of the data loader. 
+#### Dependencies
+The following libraries are required before you get started:
+1. Git
+2. Anaconda/Miniconda
+3. Docker
+4. Python3
 
-### Software Dependencies
-The software dependencies can be found in the `env.yaml` and `requirements.txt`.
+#### Download the repo
+Clone [Wafer Insights](https://github.com/intel/wafer-insights-with-classical-ml) repository.
+```
+git clone https://github.com/intel/wafer-insights-with-classical-ml
+cd wafer-insights-with-classical-ml
+git checkout v1.0.0
+```
 
-### Performance 
+#### Download the Dataset
+Actual measurement data from the Intel fab cannot be shared with the public. Therefore, we provide a synthetic data loader to generate synthetic data using the `make_regression` function from the sklearn library, which has the following format:
+| **Type**         | **Format** | **Rows** | **Columns** |
+| ---------------- | ---------- | -------- | ----------- |
+| Feature Dataset  | Parquet    | 25000    | 2000        |
+| Response Dataset | Parquet    | 25000    | 1            |
 
-Inference           |  Inference Transformed          | Pipeline Fit|
-:-------------------------:|:-------------------------:|:-------------------------:
-![](plots/inference.png)  |  ![](plots/inference_transform.png) | ![](plots/pipeline_fit.png)
-
-The numbers shown in the plots are the timings for the different components with and without Intel optimizations. The Intel optimizations refer to Intel(R) Extension for Scikit-Learn being utilized where indicated. Inference shown in the image is the actual machine learning inference. Inference transformed is the data transforms associated with the inference pass. Pipeline fit are the data transform and machine learning model fit. The performance numbers can be produced with the benchmark script found in the `src` folder.
-
-### Dataset
-The actual measurement data from the fab are not allowed to be shared with the public, thus we provide a synthetic data loader to generate synthetic data using the `make_regression` function from sklearn, which has the following format:
-
-| **Type**                 | **Format** | **Rows** | **Columns**|
-| :---                     | :---       | :---      | :---   
-| Feature Dataset          |  Parquet | 25000 | 2000
-| Response Dataset         |  Parquet | 25000 | 1
-
-The generated features and responses are saved separately in different folders under `data/synthetic_etest` and `data/synthetic_response`.
+Refer to [How to Run](#how-to-run) to construct the dataset
+### **Docker**
+Below setup and how-to-run sessions are for users who want to use the provided docker image.
+For bare metal environment, please go to [Bare Metal](#bare-metal).
+#### Setup 
 
 
-## Getting Started 
+##### Pull Docker Image
+```
+docker pull intel/ai-workflows:wafer-insights
+```
 
-> **Note:** The code is developed and tested on a machine with following configurations. But it would be sufficient to have a machine much less powerful than the used one.
+##### Set Up Synthetic Data
+```
+docker run -a stdout \
+  -v $(pwd):/workspace \
+  --workdir /workspace/src/loaders/synthetic_loader \
+  --privileged --init --rm -it \
+  intel/ai-workflows:wafer-insights \
+  conda run --no-capture-output -n WI python loader.py
+```
 
-| **Name**:                         | **Description**
-| :---                              | :---
-| CPU                               | Intel(R) Xeon(R) Gold 6252N CPU @ 2.30GHz (96 vCPUs)
-| Free RAM                          | 367 GiB/376 GiB
-| Disk Size                         | 2 TB
+#### How to Run 
+(Optional) Export related proxy into docker environment.
+```
+export DOCKER_RUN_ENVS="-e ftp_proxy=${ftp_proxy} \
+  -e FTP_PROXY=${FTP_PROXY} -e http_proxy=${http_proxy} \
+  -e HTTP_PROXY=${HTTP_PROXY} -e https_proxy=${https_proxy} \
+  -e HTTPS_PROXY=${HTTPS_PROXY} -e no_proxy=${no_proxy} \
+  -e NO_PROXY=${NO_PROXY} -e socks_proxy=${socks_proxy} \
+  -e SOCKS_PROXY=${SOCKS_PROXY}"
+```
+To run the pipeline, follow the below instructions outside of the docker instance. 
+```
+export OUTPUT_DIR=/output
+```
 
+```
+docker run -a stdout $DOCKER_RUN_ENVS \
+  --env OUTPUT_DIR=${OUTPUT_DIR} \
+  --env PYTHONPATH=$PYTHONPATH:$PWD \
+  --volume ${OUTPUT_DIR}:/output \
+  --volume $(pwd):/workspace \
+  --workdir /workspace \
+  -p 8050:8050 \
+  --privileged --init --rm -it \
+  intel/ai-workflows:wafer-insights \
+  conda run --no-capture-output -n WI python src/dashboard/app.py
+```
 
-First, set up the environment with conda using 
-```bash
+### **Bare Metal** 
+Below setup and how-to-run sessions are for users who want to use the bare metal environment.
+For docker environment, please go to [Docker](#docker).
+#### Setup 
+First, set up the environment with conda using:
+```
 conda create -n WI 
 conda activate WI
 pip install dash scikit-learn pandas pyarrow colorlover
-````
-Then pull the repo and get started to use it
-
-```bash
-git clone https://github.com/intel-sandbox/applications.ai.appliedml.workflow.waferinsights.git
-cd applications.ai.appliedml.workflow.waferinsights
 ```
-
-## Usage
-To generate synthetic data for testing from root directory:
-```bash
-cd src/loaders/synthetic/loader
+#### How to Run 
+To generate synthetic data for testing from the root directory:
+```
+cd src/loaders/synthetic_loader
 python loader.py
 ```
-
 To run the dashboard:
-
-```bash
+```
 export PYTHONPATH=$PYTHONPATH:$PWD
 python src/dashboard/app.py
 ```
+The default dashboard URL is: http://0.0.0.0:8050/
 
-The default dashboard URL is:
-http://0.0.0.0:8050/
+## Recommended Hardware 
+The hardware below is recommended for use with this reference implementation.   
+| **Name**  | Description                                          |
+| --------- | ---------------------------------------------------- |
+| CPU       | Intel(R) Xeon(R) Gold 6252N CPU @ 2.30GHz (96 vCPUs) |
+| Free RAM  | 367 GiB/376 GiB                                      |
+| Disk Size | 2 TB                                                 | 
 
+**Note:  The code was developed and tested on a machine with this configuration. However, it may be sufficient to use a machine that is much less powerful than the recommended configuration.**
 
-## License
-[Apache License 2.0](LICENSE)
+## Useful Resources
+[Intel AI Analytics Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/ai-analytics-toolkit.html)<br>
+[View All Containers and Solutions 🡢](https://www.intel.com/content/www/us/en/developer/tools/software-catalog/containers.html)<br>
+
+## Support
+[Report Issue](https://community.intel.com/t5/Intel-Optimized-AI-Frameworks/bd-p/optimized-ai-frameworks)<br>
