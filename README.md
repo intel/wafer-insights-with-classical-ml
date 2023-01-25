@@ -1,3 +1,8 @@
+# DISCONTINUATION OF PROJECT #
+This project will no longer be maintained by Intel.
+This project has been identified as having known security escapes.
+Intel has ceased development and contributions including, but not limited to, maintenance, bug fixes, new releases, or updates, to this project.
+Intel no longer accepts patches to this project.
 # T6: WaferInsights Workflow
 ## Overview
 Wafer Insights is a python application that allows users to predict FMAX/IDV tokens based on multiple data sources measured in fab.
